@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>IRONTRACKER Pro - AI 智慧健身管理系統</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#6366f1', 600: '#4f46e5' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .tap-highlight-transparent { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-24 tap-highlight-transparent">
+
+  <!-- Header & Navigation -->
+  <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 py-2.5">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+          IRONTRACKER AI
+        </h1>
+        <p class="text-[10px] text-slate-400">9/24 增肌衝刺 (98kg / 骨骼肌+1kg)</p>
+      </div>
+      <!-- 3-Tab Control -->
+      <nav class="flex bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 gap-1 text-[11px] font-bold">
+        <button id="navBtnTracker" onclick="switchTab('tracker')" class="px-2.5 py-1 rounded-lg transition-all bg-indigo-600 text-white shadow">
+          今日記錄
+        </button>
+        <button id="navBtnTimeline" onclick="switchTab('timeline')" class="px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white">
+          週期進度
+        </button>
+        <button id="navBtnAdmin" onclick="switchTab('admin')" class="px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white">
+          管理後台
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ==================== TAB 1: 每日記錄 (TRACKER) ==================== -->
+  <main id="viewTracker" class="max-w-md mx-auto px-4 py-4 space-y-4">
+    
+    <!-- Date Switcher Bar -->
+    <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between">
+      <div class="text-xs font-bold text-slate-300">記錄日期</div>
+      <select id="dateSelect" onchange="onDateChange(this.value)" class="bg-slate-800 border border-slate-700 text-xs font-semibold text-indigo-300 rounded-lg px-2.5 py-1.5 focus:outline-none">
+        <!-- Populated by JS -->
+      </select>
+    </div>
+
+    <!-- Daily Progress Cards -->
+    <section class="grid grid-cols-3 gap-2.5">
+      <!-- Calories -->
+      <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl flex flex-col justify-between">
+        <div class="text-[11px] font-medium text-slate-400">總熱量 (kcal)</div>
+        <div class="my-1">
+          <span id="calCurrent" class="text-lg font-black text-amber-400">0</span>
+          <span id="calTargetLabel" class="text-[10px] text-slate-500">/ 3300</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div id="calBar" class="bg-amber-400 h-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- Protein -->
+      <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl flex flex-col justify-between">
+        <div class="text-[11px] font-medium text-slate-400">蛋白質 (g)</div>
+        <div class="my-1">
+          <span id="protCurrent" class="text-lg font-black text-rose-400">0</span>
+          <span class="text-[10px] text-slate-500">/ 205</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div id="protBar" class="bg-rose-500 h-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- Water -->
+      <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl flex flex-col justify-between">
+        <div class="text-[11px] font-medium text-slate-400">飲水量 (ml)</div>
+        <div class="my-1">
+          <span id="waterCurrent" class="text-lg font-black text-cyan-400">0</span>
+          <span class="text-[10px] text-slate-500">/ 4000</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div id="waterBar" class="bg-cyan-400 h-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Creatine Status -->
+    <section id="creatineBanner" class="bg-indigo-950/40 border border-indigo-800/60 rounded-2xl p-3 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-indigo-600/30 flex items-center justify-center text-indigo-400 text-xs font-black">Cr</div>
+        <div>
+          <div id="creatinePhase" class="text-xs font-bold text-indigo-200">肌酸目標</div>
+          <div id="creatineDose" class="text-[11px] text-indigo-400">每日 20g (分4次)</div>
+        </div>
+      </div>
+      <button id="creatineBtn" onclick="toggleCreatine()" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-indigo-500/40 bg-indigo-900/30 text-indigo-300">
+        未達成
+      </button>
+    </section>
+
+    <!-- Workout Schedule & Checklist -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+            DAY'S FOCUS
+          </span>
+          <h2 id="workoutTitle" class="text-base font-bold text-white mt-1">胸部日</h2>
+        </div>
+        <div class="text-right flex items-center gap-2">
+          <span id="workoutCompletedRate" class="text-xs font-bold text-slate-400">0 / 0 完成</span>
+        </div>
+      </div>
+      <div id="workoutList" class="space-y-2"></div>
+    </section>
+
+    <!-- Hydration Quick-Add -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-2.5">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">快速補水 (+Water)</h2>
+        <button onclick="resetWater()" class="text-[11px] text-slate-500 hover:text-rose-400">歸零</button>
+      </div>
+      <div class="grid grid-cols-4 gap-2">
+        <button onclick="addWater(250)" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold active:scale-95">+250ml</button>
+        <button onclick="addWater(500)" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold active:scale-95">+500ml</button>
+        <button onclick="addWater(750)" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold active:scale-95">+750ml</button>
+        <button onclick="addWater(1000)" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold active:scale-95">+1000ml</button>
+      </div>
+    </section>
+
+    <!-- Preset Foods -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-2.5">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">常用蛋白質快捷清單</h2>
+        <button onclick="switchTab('admin', 'ai-section')" class="text-[11px] text-indigo-400 hover:underline">✨ AI 估算新增 →</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2" id="trackerPresetGrid"></div>
+    </section>
+
+    <!-- Custom Food Form -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">自訂單筆飲食</h2>
+      <form id="customFoodForm" onsubmit="handleCustomFood(event)" class="space-y-2">
+        <input type="text" id="foodName" placeholder="食物名稱 (例: 雞胸肉排)" required class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white">
+        <div class="grid grid-cols-2 gap-2">
+          <input type="number" step="0.5" id="foodProtein" placeholder="蛋白質 (g)" required class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white">
+          <input type="number" id="foodCalories" placeholder="熱量 (kcal)" required class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white">
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 rounded-xl active:scale-95">記錄到今日</button>
+      </form>
+      <div class="mt-4 border-t border-slate-800 pt-3">
+        <div class="text-[11px] font-bold text-slate-400 mb-2">今日飲食明細</div>
+        <div id="dietLogList" class="space-y-1.5 max-h-44 overflow-y-auto"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== TAB 2: 週期進度總表 (TIMELINE) ==================== -->
+  <main id="viewTimeline" class="max-w-md mx-auto px-4 py-4 space-y-4 hidden">
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">18 天增肌衝刺整體平均達成率</div>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="p-2 bg-slate-800/80 rounded-xl border border-slate-700/60">
+          <div class="text-[10px] text-slate-400">熱量平均</div>
+          <div id="macroAvgCal" class="text-sm font-black text-amber-400 mt-0.5">0%</div>
+        </div>
+        <div class="p-2 bg-slate-800/80 rounded-xl border border-slate-700/60">
+          <div class="text-[10px] text-slate-400">蛋白質平均</div>
+          <div id="macroAvgProt" class="text-sm font-black text-rose-400 mt-0.5">0%</div>
+        </div>
+        <div class="p-2 bg-slate-800/80 rounded-xl border border-slate-700/60">
+          <div class="text-[10px] text-slate-400">飲水平均</div>
+          <div id="macroAvgWater" class="text-sm font-black text-cyan-400 mt-0.5">0%</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-2.5">
+      <div class="flex items-center justify-between px-1">
+        <span class="text-xs font-bold text-slate-300">9/7 – 9/24 每日指標達成矩陣</span>
+        <span class="text-[10px] text-slate-500">點選卡片可切換該日記錄</span>
+      </div>
+      <div id="timelineCardsContainer" class="space-y-2"></div>
+    </section>
+  </main>
+
+  <!-- ==================== TAB 3: 管理後台 (ADMIN) ==================== -->
+  <main id="viewAdmin" class="max-w-md mx-auto px-4 py-4 space-y-6 hidden">
+    
+    <!-- 1. AI 智能估算食物營養專區 -->
+    <section id="ai-section" class="bg-gradient-to-b from-indigo-950/60 to-slate-900 border border-indigo-500/40 rounded-2xl p-4 shadow-lg shadow-indigo-950/50">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🤖</span>
+          <div>
+            <h2 class="text-sm font-black text-white">AI 食物營養智慧搜尋估算</h2>
+            <p class="text-[10px] text-indigo-300">輸入店家與餐點，由 Gemini AI 自動精算蛋白質與熱量</p>
+          </div>
+        </div>
+        <span id="modelBadge" class="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold">Gemini 3.6 Flash</span>
+      </div>
+
+      <!-- API Key Setting -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 mb-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-bold text-slate-300">Gemini API Key</span>
+            <span id="apiKeyStatus" class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">未設定</span>
+          </div>
+          <button onclick="toggleApiKeyInput()" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold">修改設定 ▾</button>
+        </div>
+        <div id="apiKeyContainer" class="hidden mt-2 pt-2 border-t border-slate-700/60 space-y-2">
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-1">API Key (從 Google AI Studio 免費取得)</label>
+            <input type="password" id="geminiApiKeyInput" placeholder="貼上您的 Gemini API Key" class="w-full bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-white">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-1">模型名稱 (預設: gemini-3.6-flash)</label>
+            <input type="text" id="geminiModelInput" value="gemini-3.6-flash" placeholder="gemini-3.6-flash" class="w-full bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-white">
+          </div>
+          <div class="flex justify-between items-center pt-1">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-[10px] text-indigo-400 hover:underline">免費申請 Google API Key ↗</a>
+            <button onclick="saveApiKey()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-lg active:scale-95">儲存於本機</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Food Query Form -->
+      <form onsubmit="handleAiSearch(event)" class="space-y-2.5">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400">店家 / 品牌</label>
+            <input type="text" id="aiStoreInput" placeholder="例: 7-11 / 梁社漢 / 八方" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400">餐點 / 食物名稱 *</label>
+            <input type="text" id="aiFoodInput" placeholder="例: 椒麻雞便當 / 招牌鍋貼10顆" required class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:border-indigo-500">
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400">客製備註 (選填)</label>
+          <input type="text" id="aiNoteInput" placeholder="例: 去皮 / 半飯 / 走醬 / 大碗" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-1.5 text-white placeholder-slate-500">
+        </div>
+        <button type="submit" id="aiSearchBtn" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-xl transition-all active:scale-95 shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+          <span>✨</span>
+          <span id="aiBtnText">AI 智慧估算蛋白質與熱量</span>
+        </button>
+      </form>
+
+      <!-- AI Result Card -->
+      <div id="aiResultCard" class="hidden mt-4 p-3 bg-slate-900/90 border border-indigo-500/50 rounded-xl space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span id="aiResultTitle" class="text-xs font-black text-indigo-300">估算結果</span>
+          <span class="text-[10px] text-slate-400">推估完成</span>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2 text-center py-1">
+          <div class="bg-slate-800 p-2 rounded-lg border border-slate-700">
+            <div class="text-[10px] text-slate-400">推估蛋白質</div>
+            <div id="aiResultProt" class="text-base font-black text-rose-400 mt-0.5">0g</div>
+          </div>
+          <div class="bg-slate-800 p-2 rounded-lg border border-slate-700">
+            <div class="text-[10px] text-slate-400">推估總熱量</div>
+            <div id="aiResultCal" class="text-base font-black text-amber-400 mt-0.5">0 kcal</div>
+          </div>
+        </div>
+
+        <p id="aiResultDesc" class="text-[11px] text-slate-300 bg-slate-800/60 p-2 rounded-lg border border-slate-800 leading-relaxed"></p>
+
+        <!-- Quick Action Buttons -->
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button onclick="applyAiToPresets()" class="py-2 bg-rose-600/80 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg active:scale-95 transition-all">
+            + 存入常用蛋白質
+          </button>
+          <button onclick="applyAiToTodayLog()" class="py-2 bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg active:scale-95 transition-all">
+            ✓ 記入今日飲食
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 常用蛋白質品項資料庫 -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-2 h-4 bg-rose-500 rounded-full"></span>
+        <h2 class="text-sm font-black text-white">常用蛋白質品項庫 (手動新增/管理)</h2>
+      </div>
+
+      <form onsubmit="handleAddPreset(event)" class="space-y-2 bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 mb-4">
+        <div class="text-xs font-bold text-slate-300">手動建立品項</div>
+        <input type="text" id="newPresetName" placeholder="食物名稱 (例: 好市多牛腱 150g)" required class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white">
+        <div class="grid grid-cols-2 gap-2">
+          <input type="number" step="0.1" id="newPresetProt" placeholder="蛋白質 (g)" required class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white">
+          <input type="number" id="newPresetCal" placeholder="熱量 (kcal)" required class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white">
+        </div>
+        <button type="submit" class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl active:scale-95">+ 加入常用清單</button>
+      </form>
+
+      <div>
+        <div class="text-xs font-bold text-slate-400 mb-2">現有常用品項清單</div>
+        <div id="adminPresetList" class="space-y-2 max-h-56 overflow-y-auto"></div>
+      </div>
+    </section>
+
+    <!-- 3. 課表彈性挪動與編修 -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-2 h-4 bg-indigo-500 rounded-full"></span>
+        <h2 class="text-sm font-black text-white">課表彈性挪動與編修</h2>
+      </div>
+
+      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-3 mb-4">
+        <div>
+          <label class="text-[10px] font-bold uppercase text-slate-400">目前編輯日期</label>
+          <select id="adminDateSelect" onchange="onAdminDateChange(this.value)" class="w-full mt-1 bg-slate-800 border border-slate-600 text-xs font-bold text-indigo-300 rounded-lg px-2.5 py-2"></select>
+        </div>
+
+        <!-- Schedule Swap -->
+        <div class="p-2.5 bg-indigo-950/30 border border-indigo-800/40 rounded-xl space-y-2">
+          <div class="text-xs font-bold text-indigo-200">🔄 雙向課表快速對調</div>
+          <p class="text-[10px] text-slate-400 leading-relaxed">選擇目標日期即可瞬間交換兩日課表內容：</p>
+          <div class="flex gap-2">
+            <select id="swapTargetDateSelect" class="flex-1 bg-slate-800 border border-slate-600 text-xs rounded-lg px-2 py-1.5 text-slate-200"></select>
+            <button onclick="swapSchedules()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg active:scale-95 shadow">對調課表</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10px] font-bold uppercase text-slate-400">課表主題名稱</label>
+          <input type="text" id="adminDayTitle" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 font-bold focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold uppercase text-slate-400">肌酸劑量模式</label>
+          <select id="adminDayPhase" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs text-white rounded-xl px-3 py-2">
+            <option value="creatine_loading">🔥 快速填充期 (每日 20g)</option>
+            <option value="creatine_maintenance">⚡ 每日維持期 (每日 5g)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold uppercase text-slate-400 mb-1 block">訓練動作清單 (可微調順序)</label>
+          <div id="adminExerciseList" class="space-y-2"></div>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <input type="text" id="newExerciseText" placeholder="新增動作 (例: 啞鈴側平舉 4組×15下)" class="flex-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white">
+          <button onclick="addExerciseToCurrentDay()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-xs font-bold rounded-xl text-indigo-300 active:scale-95">+ 新增動作</button>
+        </div>
+        <button onclick="saveCurrentDayMeta()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl active:scale-95 shadow-lg shadow-emerald-600/20">
+          💾 儲存本日課表修改
+        </button>
+      </div>
+    </section>
+
+    <!-- Reset Defaults -->
+    <div class="text-center">
+      <button onclick="resetAllDefaults()" class="text-xs text-rose-400 hover:underline">⚠️ 重置所有課表與食物為初始設定</button>
+    </div>
+  </main>
+
+  <script>
+    // Master Schedule Default Template
+    const DEFAULT_SCHEDULE = {
+      "2026-09-07": {
+        title: "胸部日 + 前置深蹲",
+        phase: "creatine_loading",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲：87.5 kg × 10 下 × 3 組" },
+          { id: "e2", text: "平面槓鈴臥推：85 kg × 10-12 下 × 5 組" },
+          { id: "e3", text: "上斜啞鈴臥推：4 組 × 10-12 下" },
+          { id: "e4", text: "雙槓撐體或機械胸推：3 組 × 12-15 下" },
+          { id: "e5", text: "繩索夾胸（慢離心充血）：3 組 × 15 下" }
+        ]
+      },
+      "2026-09-08": {
+        title: "每週個人教練課 (動作精進)",
+        phase: "creatine_loading",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "教練課技術訓練主項（專注離心 3-4 秒與關節軌跡）" },
+          { id: "e2", text: "輔助弱點強化動作 3-4 組" },
+          { id: "e3", text: "練後即刻補給：乳清蛋白 + 5g 肌酸 + 60g 高碳水" }
+        ]
+      },
+      "2026-09-09": {
+        title: "背部日 + 速度深蹲",
+        phase: "creatine_loading",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲（速度動態組）：70 kg × 8 下 × 3 組" },
+          { id: "e2", text: "傳統硬舉或架上拉：4 組 × 6-8 下" },
+          { id: "e3", text: "滑輪下拉：4 組 × 10-12 下" },
+          { id: "e4", text: "槓鈴/啞鈴划船：4 組 × 8-10 下" },
+          { id: "e5", text: "面拉（Face Pull）：3 組 × 15 下" }
+        ]
+      },
+      "2026-09-10": {
+        title: "肩部日 + 前置深蹲",
+        phase: "creatine_loading",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲：87.5 kg × 10-11 下 × 3 組" },
+          { id: "e2", text: "站姿槓鈴肩推：4 組 × 8-10 下" },
+          { id: "e3", text: "坐姿啞鈴肩推：3 組 × 10-12 下" },
+          { id: "e4", text: "啞鈴側平舉：5 組 × 15 下 (短組歇 45 秒)" },
+          { id: "e5", text: "俯身飛鳥（後三角）：4 組 × 15 下" }
+        ]
+      },
+      "2026-09-11": {
+        title: "手臂日 + 輕量深蹲 (填充期最後一天)",
+        phase: "creatine_loading",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲（動態恢復）：60 kg × 10 下 × 3 組" },
+          { id: "e2", text: "槓鈴二頭彎舉：4 組 × 10-12 下" },
+          { id: "e3", text: "機械/窄距臥推：4 組 × 8-10 下" },
+          { id: "e4", text: "錘式彎舉：3 組 × 12 下" },
+          { id: "e5", text: "繩索三頭下壓：4 組 × 12-15 下" },
+          { id: "e6", text: "超級組：牧師凳彎舉 + 仰臥臂屈伸 3 組 × 12 下" }
+        ]
+      },
+      "2026-09-12": {
+        title: "緩和日 (60% 重量排酸日)",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "胸部主項：原重量 60% × 10-12 下 × 3 組" },
+          { id: "e2", text: "背部主項：原重量 60% × 10-12 下 × 3 組" },
+          { id: "e3", text: "肩部主項：原重量 60% × 10-12 下 × 3 組" },
+          { id: "e4", text: "深蹲熱身：55 kg × 8 下 × 3 組 (維持活動度，不力竭)" }
+        ]
+      },
+      "2026-09-13": {
+        title: "完全休息日 (生長補水)",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "完全無重量訓練，避免激烈運動" },
+          { id: "e2", text: "飲水量確切達標 4000 ml" },
+          { id: "e3", text: "高碳水儲備 + 蛋白質 205g 達標" },
+          { id: "e4", text: "睡眠滿 8 小時" }
+        ]
+      },
+      "2026-09-14": {
+        title: "胸部日 + 87.5kg 深蹲",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲：87.5 kg × 11 下 × 3 組" },
+          { id: "e2", text: "平面槓鈴臥推：85 kg × 9-13 下 × 5 組" },
+          { id: "e3", text: "上斜啞鈴臥推：4 組 × 10-12 下" },
+          { id: "e4", text: "繩索夾胸：4 組 × 15 下" }
+        ]
+      },
+      "2026-09-15": {
+        title: "每週個人教練課 (動作精進)",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "配合教練指定肌群技術攻堅" },
+          { id: "e2", text: "檢視動作軌跡與力量傳導" },
+          { id: "e3", text: "練後高蛋白 35g + 肌酸 5g" }
+        ]
+      },
+      "2026-09-16": {
+        title: "背部日 + 速度深蹲",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲：70 kg × 8 下 × 3 組" },
+          { id: "e2", text: "槓鈴划船：4 組 × 8-10 下" },
+          { id: "e3", text: "正手引體向上 / 高位下拉：4 組 × 10-12 下" },
+          { id: "e4", text: "單臂啞鈴划船：3 組 × 10 下" },
+          { id: "e5", text: "坐姿划船：3 組 × 12 下" }
+        ]
+      },
+      "2026-09-17": {
+        title: "肩部日 + 前置深蹲",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲：87.5 kg × 11 下 × 3 組" },
+          { id: "e2", text: "站姿槓鈴推舉：4 組 × 8-10 下" },
+          { id: "e3", text: "機械側平舉：5 組 × 12-15 下" },
+          { id: "e4", text: "反向飛鳥：4 組 × 15 下" }
+        ]
+      },
+      "2026-09-18": {
+        title: "手臂日 + 輕量深蹲",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "深蹲：60 kg × 10 下 × 3 組" },
+          { id: "e2", text: "超級組：槓鈴彎舉 + 法式推舉 4 組 × 10-12 下" },
+          { id: "e3", text: "斜板啞鈴彎舉：3 組 × 12 下" },
+          { id: "e4", text: "繩索過頂三頭伸展：4 組 × 12-15 下" }
+        ]
+      },
+      "2026-09-19": {
+        title: "緩和日 (60% 重量循環)",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "全身主要肌群各選 1 動作，60% 重量，3 組 × 10-12 下" },
+          { id: "e2", text: "加速代謝廢物清除，嚴禁力竭" }
+        ]
+      },
+      "2026-09-20": {
+        title: "完全休息日",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "充足水分 4000 ml" },
+          { id: "e2", text: "蛋白質 205g 嚴格達標" },
+          { id: "e3", text: "充分滾筒放鬆與伸展" }
+        ]
+      },
+      "2026-09-21": {
+        title: "上肢大容量增肌日 (腿部留力)",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "槓鈴臥推：85 kg × 8-10 下 × 4 組" },
+          { id: "e2", text: "滑輪下拉：4 組 × 10 下" },
+          { id: "e3", text: "啞鈴肩推：3 組 × 10 下" },
+          { id: "e4", text: "下肢完全休息（保留能量給明日教練課）" }
+        ]
+      },
+      "2026-09-22": {
+        title: "每週個人教練課 (賽前技術週)",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "動作細節優化，避免產生劇烈 DOMS" },
+          { id: "e2", text: "練後補充蛋白質與高碳水" }
+        ]
+      },
+      "2026-09-23": {
+        title: "極輕量肌泵 + 高碳水超補日",
+        phase: "creatine_maintenance",
+        targetCal: 3500, targetProt: 205, targetWater: 4200,
+        exercises: [
+          { id: "e1", text: "不碰大重量！各部位以 40-50% 重量進行 15-20 下充血組" },
+          { id: "e2", text: "今日全天碳水化合物提升至 500g (白飯、地瓜補滿)" },
+          { id: "e3", text: "充足水分 4200 ml + 適量鈉攝取，最大化肌肉蓄水" }
+        ]
+      },
+      "2026-09-24": {
+        title: "🎯 驗收日 (InBody 270 檢測)",
+        phase: "creatine_maintenance",
+        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        exercises: [
+          { id: "e1", text: "早晨空腹、起床排便完成後立即檢測" },
+          { id: "e2", text: "檢測前嚴禁大量灌水（前一天水分喝足即可）" },
+          { id: "e3", text: "目標：體重 98kg、骨骼肌重 ≥ 38.9kg" }
+        ]
+      }
+    };
+
+    const DEFAULT_PRESETS = [
+      { id: "p1", name: "乳清蛋白 (1 份)", protein: 25, cal: 120 },
+      { id: "p2", name: "即食雞胸肉 (1 包/150g)", protein: 35, cal: 165 },
+      { id: "p3", name: "全蛋 (2 顆)", protein: 14, cal: 150 },
+      { id: "p4", name: "嫩煎牛排/瘦牛肉 (150g)", protein: 32, cal: 240 },
+      { id: "p5", name: "無糖高纖豆漿 (400ml)", protein: 15, cal: 150 },
+      { id: "p6", name: "大碗白飯 (300g)", protein: 8, cal: 400 },
+      { id: "p7", name: "地瓜 (200g)", protein: 3, cal: 180 },
+      { id: "p8", name: "香蕉 (1 根)", protein: 1.5, cal: 95 }
+    ];
+
+    let currentSchedule = {};
+    let currentPresets = [];
+    let appState = {};
+    let currentDate = "2026-09-07";
+    let adminCurrentDate = "2026-09-07";
+    let latestAiParsed = null;
+
+    function init() {
+      const savedSchedule = localStorage.getItem("irontracker_schedule");
+      currentSchedule = savedSchedule ? JSON.parse(savedSchedule) : JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+
+      const savedPresets = localStorage.getItem("irontracker_presets");
+      currentPresets = savedPresets ? JSON.parse(savedPresets) : JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+
+      const savedData = localStorage.getItem("irontracker_data");
+      appState = savedData ? JSON.parse(savedData) : {};
+
+      checkApiKeyStatus();
+      populateDateSelectors();
+      renderTrackerView();
+      renderTimelineView();
+      renderAdminView();
+    }
+
+    function populateDateSelectors() {
+      const dates = Object.keys(currentSchedule).sort();
+      const dateSelect = document.getElementById("dateSelect");
+      const adminDateSelect = document.getElementById("adminDateSelect");
+      const swapSelect = document.getElementById("swapTargetDateSelect");
+
+      dateSelect.innerHTML = "";
+      adminDateSelect.innerHTML = "";
+      swapSelect.innerHTML = "";
+
+      dates.forEach(dStr => {
+        const [y, m, d] = dStr.split("-");
+        const dayLabel = `${m}/${d} (${getDayName(dStr)})`;
+        dateSelect.add(new Option(dayLabel, dStr));
+        adminDateSelect.add(new Option(dayLabel, dStr));
+        swapSelect.add(new Option(dayLabel, dStr));
+      });
+
+      dateSelect.value = currentDate;
+      adminDateSelect.value = adminCurrentDate;
+      if (dates.length > 1) swapSelect.value = dates[1];
+    }
+
+    function getDayName(dStr) {
+      const days = ["日", "一", "二", "三", "四", "五", "六"];
+      return days[new Date(dStr).getDay()];
+    }
+
+    function getDayData(date) {
+      if (!appState[date]) {
+        appState[date] = {
+          water: 0,
+          creatineDone: false,
+          dietLogs: [],
+          completedExercises: {}
+        };
+      }
+      return appState[date];
+    }
+
+    function saveAllState() {
+      localStorage.setItem("irontracker_schedule", JSON.stringify(currentSchedule));
+      localStorage.setItem("irontracker_presets", JSON.stringify(currentPresets));
+      localStorage.setItem("irontracker_data", JSON.stringify(appState));
+    }
+
+    // ================= TAB SWITCHING =================
+    function switchTab(tabId, scrollToId = null) {
+      const views = {
+        tracker: document.getElementById("viewTracker"),
+        timeline: document.getElementById("viewTimeline"),
+        admin: document.getElementById("viewAdmin")
+      };
+      const buttons = {
+        tracker: document.getElementById("navBtnTracker"),
+        timeline: document.getElementById("navBtnTimeline"),
+        admin: document.getElementById("navBtnAdmin")
+      };
+
+      Object.keys(views).forEach(key => {
+        if (key === tabId) {
+          views[key].classList.remove("hidden");
+          buttons[key].className = "px-2.5 py-1 rounded-lg transition-all bg-indigo-600 text-white shadow";
+        } else {
+          views[key].classList.add("hidden");
+          buttons[key].className = "px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white";
+        }
+      });
+
+      if (tabId === "timeline") renderTimelineView();
+      if (tabId === "tracker") renderTrackerView();
+      if (tabId === "admin") renderAdminView();
+
+      if (scrollToId) {
+        setTimeout(() => {
+          document.getElementById(scrollToId)?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+      }
+    }
+
+    function jumpToDateInTracker(targetDate) {
+      currentDate = targetDate;
+      document.getElementById("dateSelect").value = targetDate;
+      switchTab("tracker");
+    }
+
+    // ================= API KEY & AI INTEGRATION =================
+    function checkApiKeyStatus() {
+      const key = localStorage.getItem("irontracker_gemini_api_key");
+      const model = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
+      const statusEl = document.getElementById("apiKeyStatus");
+      const inputEl = document.getElementById("geminiApiKeyInput");
+      const modelInputEl = document.getElementById("geminiModelInput");
+      const badgeEl = document.getElementById("modelBadge");
+
+      if (modelInputEl) modelInputEl.value = model;
+      if (badgeEl) badgeEl.textContent = model;
+
+      if (key && key.trim().length > 10) {
+        statusEl.textContent = "已就緒 ✓";
+        statusEl.className = "text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        inputEl.value = key;
+      } else {
+        statusEl.textContent = "未設定";
+        statusEl.className = "text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
+      }
+    }
+
+    function toggleApiKeyInput() {
+      const c = document.getElementById("apiKeyContainer");
+      c.classList.toggle("hidden");
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById("geminiApiKeyInput").value.trim();
+      const model = document.getElementById("geminiModelInput").value.trim() || "gemini-3.6-flash";
+      if (!key) {
+        alert("請輸入有效的 Gemini API Key");
+        return;
+      }
+      localStorage.setItem("irontracker_gemini_api_key", key);
+      localStorage.setItem("irontracker_gemini_model", model);
+      checkApiKeyStatus();
+      toggleApiKeyInput();
+      alert(`設定已更新！目前使用模型：${model}`);
+    }
+
+    async function handleAiSearch(e) {
+      e.preventDefault();
+      const apiKey = localStorage.getItem("irontracker_gemini_api_key");
+      if (!apiKey) {
+        alert("請先點擊上方「修改設定」，輸入並儲存您的免費 Google Gemini API Key！");
+        toggleApiKeyInput();
+        return;
+      }
+
+      const store = document.getElementById("aiStoreInput").value.trim();
+      const food = document.getElementById("aiFoodInput").value.trim();
+      const note = document.getElementById("aiNoteInput").value.trim();
+      if (!food) return;
+
+      const btn = document.getElementById("aiSearchBtn");
+      const btnText = document.getElementById("aiBtnText");
+      btn.disabled = true;
+      btn.classList.add("opacity-60", "cursor-not-allowed");
+      btnText.textContent = "AI 正在查詢分析中...";
+
+      const prompt = `你是一個精通台灣餐飲與運動營養的專業營養師。請依據台灣食藥署食品營養成分資料庫及各連鎖餐飲公布之公信數據，精準估算以下餐點的營養成分。
+餐飲店家/品牌：${store || "一般店家/小吃"}
+餐點名稱：${food}
+客製調整/備註：${note || "無"}
+
+請以純 JSON 格式回應，絕對不要使用 markdown code block（不要加 \`\`\`json），直接輸出 JSON 物件：
+{
+  "name": "${store ? store + ' - ' : ''}${food}${note ? ' (' + note + ')' : ''}",
+  "protein": 蛋白質數值(公克，浮點數或整數),
+  "calories": 總熱量數值(大卡，整數),
+  "description": "簡短分析說明，例如主要食材份量、烹調方式對熱量的影響，約 40-70 字"
+}`;
+
+      // 優先使用 gemini-3.6-flash，若有需要具備 fallback
+      const primaryModel = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
+      const candidateModels = [primaryModel, "gemini-3.6-flash", "gemini-3.5-flash"];
+      const uniqueModels = [...new Set(candidateModels)];
+
+      let lastError = null;
+      let parsedResult = null;
+
+      for (const model of uniqueModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          });
+
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error?.message || `API 狀態碼: ${resp.status}`);
+          }
+
+          const data = await resp.json();
+          const textResp = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!textResp) throw new Error("AI 回應為空");
+
+          const cleanJson = textResp.replace(/```json/g, "").replace(/```/g, "").trim();
+          parsedResult = JSON.parse(cleanJson);
+          break; // 成功解析即中斷迴圈
+        } catch (err) {
+          lastError = err;
+          // 若為模型不可用，繼續嘗試下一個備援模型
+          continue;
+        }
+      }
+
+      btn.disabled = false;
+      btn.classList.remove("opacity-60", "cursor-not-allowed");
+      btnText.textContent = "AI 智慧估算蛋白質與熱量";
+
+      if (parsedResult) {
+        latestAiParsed = parsedResult;
+        displayAiResult(parsedResult);
+      } else {
+        alert(`AI 估算失敗：${lastError ? lastError.message : "未知錯誤"}\n請檢查 API Key 是否正確。`);
+      }
+    }
+
+    function displayAiResult(result) {
+      document.getElementById("aiResultCard").classList.remove("hidden");
+      document.getElementById("aiResultTitle").textContent = result.name;
+      document.getElementById("aiResultProt").textContent = `${result.protein}g`;
+      document.getElementById("aiResultCal").textContent = `${result.calories} kcal`;
+      document.getElementById("aiResultDesc").textContent = result.description || "由 Gemini 智慧估算。";
+    }
+
+    function applyAiToPresets() {
+      if (!latestAiParsed) return;
+      currentPresets.push({
+        id: "p_" + Date.now(),
+        name: latestAiParsed.name,
+        protein: latestAiParsed.protein,
+        cal: latestAiParsed.calories
+      });
+      saveAllState();
+      renderAdminView();
+      renderTrackerView();
+      alert(`已成功將「${latestAiParsed.name}」加入常用蛋白質資料庫！可在每日記錄中一鍵打卡。`);
+    }
+
+    function applyAiToTodayLog() {
+      if (!latestAiParsed) return;
+      const d = getDayData(currentDate);
+      d.dietLogs.push({
+        name: latestAiParsed.name,
+        protein: latestAiParsed.protein,
+        cal: latestAiParsed.calories
+      });
+      saveAllState();
+      renderTrackerView();
+      renderTimelineView();
+      alert(`已成功將「${latestAiParsed.name}」記入 ${currentDate} 的飲食明細中！`);
+    }
+
+    // ================= TRACKER VIEW =================
+    function onDateChange(newDate) {
+      currentDate = newDate;
+      renderTrackerView();
+    }
+
+    function renderTrackerView() {
+      const data = getDayData(currentDate);
+      const schedule = currentSchedule[currentDate] || { title: "自訂行程", exercises: [], phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000 };
+
+      const targetCal = schedule.targetCal || 3300;
+      const targetProt = schedule.targetProt || 205;
+      const targetWater = schedule.targetWater || 4000;
+
+      let totalProt = 0, totalCal = 0;
+      (data.dietLogs || []).forEach(log => {
+        totalProt += Number(log.protein || 0);
+        totalCal += Number(log.cal || 0);
+      });
+
+      document.getElementById("calCurrent").textContent = Math.round(totalCal);
+      document.getElementById("calTargetLabel").textContent = `/ ${targetCal}`;
+      document.getElementById("calBar").style.width = Math.min(100, (totalCal / targetCal) * 100) + "%";
+
+      document.getElementById("protCurrent").textContent = (Math.round(totalProt * 10) / 10);
+      document.getElementById("protBar").style.width = Math.min(100, (totalProt / targetProt) * 100) + "%";
+
+      document.getElementById("waterCurrent").textContent = data.water;
+      document.getElementById("waterBar").style.width = Math.min(100, (data.water / targetWater) * 100) + "%";
+
+      // Creatine
+      const isLoading = schedule.phase === "creatine_loading";
+      document.getElementById("creatinePhase").textContent = isLoading ? "🔥 肌酸快速填充期" : "⚡ 肌酸維持期";
+      document.getElementById("creatineDose").textContent = isLoading ? "每日 20g (分 4 次攝取，每次 5g)" : "每日 5g (練後搭配高蛋白與碳水)";
+
+      const creatineBtn = document.getElementById("creatineBtn");
+      if (data.creatineDone) {
+        creatineBtn.textContent = "已達成 ✓";
+        creatineBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-600 text-white shadow";
+      } else {
+        creatineBtn.textContent = "未達成";
+        creatineBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold border border-indigo-500/40 bg-indigo-900/30 text-indigo-300";
+      }
+
+      // Exercises
+      document.getElementById("workoutTitle").textContent = schedule.title;
+      const exList = document.getElementById("workoutList");
+      exList.innerHTML = "";
+
+      let completedCount = 0;
+      (schedule.exercises || []).forEach(ex => {
+        const isDone = !!data.completedExercises[ex.id];
+        if (isDone) completedCount++;
+
+        const item = document.createElement("div");
+        item.className = `flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
+          isDone ? "bg-slate-800/40 border-slate-800 opacity-60 line-through" : "bg-slate-800/80 border-slate-700/80 hover:border-indigo-500/60"
+        }`;
+        item.onclick = () => toggleExercise(ex.id);
+        item.innerHTML = `
+          <input type="checkbox" ${isDone ? "checked" : ""} class="w-4 h-4 rounded text-indigo-600 bg-slate-700 border-slate-600 pointer-events-none">
+          <span class="text-xs font-medium text-slate-200 leading-snug">${ex.text}</span>
+        `;
+        exList.appendChild(item);
+      });
+      document.getElementById("workoutCompletedRate").textContent = `${completedCount} / ${(schedule.exercises || []).length} 完成`;
+
+      // Preset food grid
+      const trackerPresetGrid = document.getElementById("trackerPresetGrid");
+      trackerPresetGrid.innerHTML = currentPresets.map(p => `
+        <button onclick="addPresetFood('${p.name}', ${p.protein}, ${p.cal})"
+          class="p-2.5 text-left rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700/60 transition-all active:scale-[0.98]">
+          <div class="text-xs font-bold text-slate-200 truncate">${p.name}</div>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="text-[11px] font-extrabold text-rose-400">+${p.protein}g 蛋</span>
+            <span class="text-[10px] text-amber-300">+${p.cal} kcal</span>
+          </div>
+        </button>
+      `).join("");
+
+      // Diet Log List
+      const dietList = document.getElementById("dietLogList");
+      if (!data.dietLogs || data.dietLogs.length === 0) {
+        dietList.innerHTML = `<div class="text-[11px] text-slate-500 italic py-1">今日尚無飲食記錄</div>`;
+      } else {
+        dietList.innerHTML = data.dietLogs.map((log, idx) => `
+          <div class="flex items-center justify-between text-xs bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-800">
+            <span class="font-medium text-slate-200">${log.name}</span>
+            <div class="flex items-center gap-3">
+              <span class="text-rose-400 font-bold">${log.protein}g P</span>
+              <span class="text-amber-400 font-bold">${log.cal} kcal</span>
+              <button onclick="removeDietLog(${idx})" class="text-slate-500 hover:text-rose-400">✕</button>
+            </div>
+          </div>
+        `).join("");
+      }
+    }
+
+    function addWater(amt) {
+      const d = getDayData(currentDate);
+      d.water += amt;
+      saveAllState();
+      renderTrackerView();
+      renderTimelineView();
+    }
+    function resetWater() {
+      if (confirm("是否將今日飲水量歸零？")) {
+        getDayData(currentDate).water = 0;
+        saveAllState();
+        renderTrackerView();
+        renderTimelineView();
+      }
+    }
+    function toggleCreatine() {
+      const d = getDayData(currentDate);
+      d.creatineDone = !d.creatineDone;
+      saveAllState();
+      renderTrackerView();
+      renderTimelineView();
+    }
+    function toggleExercise(id) {
+      const d = getDayData(currentDate);
+      d.completedExercises[id] = !d.completedExercises[id];
+      saveAllState();
+      renderTrackerView();
+    }
+    function addPresetFood(name, protein, cal) {
+      getDayData(currentDate).dietLogs.push({ name, protein, cal });
+      saveAllState();
+      renderTrackerView();
+      renderTimelineView();
+    }
+    function handleCustomFood(e) {
+      e.preventDefault();
+      const name = document.getElementById("foodName").value.trim();
+      const protein = parseFloat(document.getElementById("foodProtein").value) || 0;
+      const cal = parseInt(document.getElementById("foodCalories").value) || 0;
+      if (!name) return;
+      getDayData(currentDate).dietLogs.push({ name, protein, cal });
+      saveAllState();
+      document.getElementById("customFoodForm").reset();
+      renderTrackerView();
+      renderTimelineView();
+    }
+    function removeDietLog(idx) {
+      getDayData(currentDate).dietLogs.splice(idx, 1);
+      saveAllState();
+      renderTrackerView();
+      renderTimelineView();
+    }
+
+    // ================= TIMELINE VIEW =================
+    function renderTimelineView() {
+      const dates = Object.keys(currentSchedule).sort();
+      const container = document.getElementById("timelineCardsContainer");
+      container.innerHTML = "";
+
+      let sumCalRate = 0, sumProtRate = 0, sumWaterRate = 0;
+
+      dates.forEach(dStr => {
+        const schedule = currentSchedule[dStr];
+        const data = getDayData(dStr);
+        const [y, m, d] = dStr.split("-");
+        const dayLabel = `${m}/${d} (${getDayName(dStr)})`;
+
+        const targetCal = schedule.targetCal || 3300;
+        const targetProt = schedule.targetProt || 205;
+        const targetWater = schedule.targetWater || 4000;
+
+        let totalCal = 0, totalProt = 0;
+        (data.dietLogs || []).forEach(log => {
+          totalCal += Number(log.cal || 0);
+          totalProt += Number(log.protein || 0);
+        });
+
+        const calRate = Math.min(100, Math.round((totalCal / targetCal) * 100));
+        const protRate = Math.min(100, Math.round((totalProt / targetProt) * 100));
+        const waterRate = Math.min(100, Math.round((data.water / targetWater) * 100));
+
+        sumCalRate += calRate;
+        sumProtRate += protRate;
+        sumWaterRate += waterRate;
+
+        const isToday = (dStr === currentDate);
+
+        const card = document.createElement("div");
+        card.className = `p-3 rounded-2xl border transition-all cursor-pointer ${
+          isToday ? "bg-slate-900 border-indigo-500 shadow-md shadow-indigo-500/10" : "bg-slate-900/90 border-slate-800 hover:border-slate-700"
+        }`;
+        card.onclick = () => jumpToDateInTracker(dStr);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-black ${isToday ? "text-indigo-400" : "text-white"}">${dayLabel}</span>
+              <span class="text-[11px] text-slate-300 font-bold truncate max-w-[140px]">${schedule.title}</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              ${data.creatineDone ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">肌酸✓</span>' : '<span class="text-[9px] text-slate-600">肌酸-</span>'}
+              <span class="text-[10px] text-slate-400">進入記錄 →</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div class="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
+              <div class="flex justify-between text-[9px] font-semibold text-slate-400">
+                <span>熱量</span>
+                <span class="${calRate >= 100 ? 'text-amber-400 font-bold' : ''}">${totalCal}/${targetCal}</span>
+              </div>
+              <div class="w-full bg-slate-700 h-1.5 rounded-full mt-1 overflow-hidden">
+                <div class="bg-amber-400 h-full" style="width: ${calRate}%"></div>
+              </div>
+            </div>
+
+            <div class="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
+              <div class="flex justify-between text-[9px] font-semibold text-slate-400">
+                <span>蛋白質</span>
+                <span class="${protRate >= 100 ? 'text-rose-400 font-bold' : ''}">${Math.round(totalProt)}/${targetProt}g</span>
+              </div>
+              <div class="w-full bg-slate-700 h-1.5 rounded-full mt-1 overflow-hidden">
+                <div class="bg-rose-500 h-full" style="width: ${protRate}%"></div>
+              </div>
+            </div>
+
+            <div class="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
+              <div class="flex justify-between text-[9px] font-semibold text-slate-400">
+                <span>飲水</span>
+                <span class="${waterRate >= 100 ? 'text-cyan-400 font-bold' : ''}">${data.water}/${targetWater}</span>
+              </div>
+              <div class="w-full bg-slate-700 h-1.5 rounded-full mt-1 overflow-hidden">
+                <div class="bg-cyan-400 h-full" style="width: ${waterRate}%"></div>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const count = dates.length || 1;
+      document.getElementById("macroAvgCal").textContent = Math.round(sumCalRate / count) + "%";
+      document.getElementById("macroAvgProt").textContent = Math.round(sumProtRate / count) + "%";
+      document.getElementById("macroAvgWater").textContent = Math.round(sumWaterRate / count) + "%";
+    }
+
+    // ================= ADMIN VIEW =================
+    function onAdminDateChange(date) {
+      adminCurrentDate = date;
+      renderAdminView();
+    }
+
+    function renderAdminView() {
+      const schedule = currentSchedule[adminCurrentDate] || { title: "", exercises: [], phase: "creatine_maintenance" };
+      document.getElementById("adminDayTitle").value = schedule.title || "";
+      document.getElementById("adminDayPhase").value = schedule.phase || "creatine_maintenance";
+
+      const exContainer = document.getElementById("adminExerciseList");
+      exContainer.innerHTML = "";
+
+      (schedule.exercises || []).forEach((ex, idx) => {
+        const item = document.createElement("div");
+        item.className = "flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-800 border border-slate-700/80 text-xs";
+        item.innerHTML = `
+          <span class="flex-1 text-slate-200 font-medium">${ex.text}</span>
+          <div class="flex items-center gap-1">
+            <button onclick="moveExercise(${idx}, -1)" ${idx === 0 ? 'disabled class="opacity-20 text-slate-500 px-1.5"' : 'class="text-indigo-400 hover:text-white px-1.5"'}>▲</button>
+            <button onclick="moveExercise(${idx}, 1)" ${idx === schedule.exercises.length - 1 ? 'disabled class="opacity-20 text-slate-500 px-1.5"' : 'class="text-indigo-400 hover:text-white px-1.5"'}>▼</button>
+            <button onclick="deleteExercise(${idx})" class="text-rose-400 hover:text-rose-300 ml-1 px-1.5">✕</button>
+          </div>
+        `;
+        exContainer.appendChild(item);
+      });
+
+      const presetContainer = document.getElementById("adminPresetList");
+      presetContainer.innerHTML = currentPresets.map((p, idx) => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs">
+          <div>
+            <div class="font-bold text-slate-200">${p.name}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">
+              蛋白質: <span class="text-rose-400 font-bold">${p.protein}g</span> ｜ 熱量: <span class="text-amber-400 font-bold">${p.cal} kcal</span>
+            </div>
+          </div>
+          <button onclick="deletePreset(${idx})" class="text-slate-500 hover:text-rose-400 p-1 font-bold">✕</button>
+        </div>
+      `).join("");
+    }
+
+    function saveCurrentDayMeta() {
+      const s = currentSchedule[adminCurrentDate];
+      if (s) {
+        s.title = document.getElementById("adminDayTitle").value.trim() || "未命名課表";
+        s.phase = document.getElementById("adminDayPhase").value;
+        saveAllState();
+        alert(`已成功儲存 ${adminCurrentDate} 課表！`);
+      }
+    }
+
+    function addExerciseToCurrentDay() {
+      const text = document.getElementById("newExerciseText").value.trim();
+      if (!text) return;
+      if (!currentSchedule[adminCurrentDate].exercises) currentSchedule[adminCurrentDate].exercises = [];
+      currentSchedule[adminCurrentDate].exercises.push({ id: "ex_" + Date.now(), text });
+      document.getElementById("newExerciseText").value = "";
+      saveAllState();
+      renderAdminView();
+    }
+
+    function deleteExercise(idx) {
+      currentSchedule[adminCurrentDate].exercises.splice(idx, 1);
+      saveAllState();
+      renderAdminView();
+    }
+
+    function moveExercise(idx, direction) {
+      const list = currentSchedule[adminCurrentDate].exercises;
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= list.length) return;
+      const temp = list[idx];
+      list[idx] = list[targetIdx];
+      list[targetIdx] = temp;
+      saveAllState();
+      renderAdminView();
+    }
+
+    function swapSchedules() {
+      const targetDate = document.getElementById("swapTargetDateSelect").value;
+      if (targetDate === adminCurrentDate) {
+        alert("請選擇與目前編輯日不同的日期！");
+        return;
+      }
+      if (!confirm(`確定對調【${adminCurrentDate}】與【${targetDate}】的課表嗎？`)) return;
+
+      const temp = JSON.parse(JSON.stringify(currentSchedule[adminCurrentDate]));
+      currentSchedule[adminCurrentDate] = JSON.parse(JSON.stringify(currentSchedule[targetDate]));
+      currentSchedule[targetDate] = temp;
+
+      saveAllState();
+      renderAdminView();
+      alert("課表對調成功！");
+    }
+
+    function handleAddPreset(e) {
+      e.preventDefault();
+      const name = document.getElementById("newPresetName").value.trim();
+      const protein = parseFloat(document.getElementById("newPresetProt").value) || 0;
+      const cal = parseInt(document.getElementById("newPresetCal").value) || 0;
+      if (!name) return;
+
+      currentPresets.push({ id: "p_" + Date.now(), name, protein, cal });
+      saveAllState();
+      document.getElementById("newPresetName").value = "";
+      document.getElementById("newPresetProt").value = "";
+      document.getElementById("newPresetCal").value = "";
+      renderAdminView();
+      renderTrackerView();
+    }
+
+    function deletePreset(idx) {
+      if (confirm(`確定刪除「${currentPresets[idx].name}」？`)) {
+        currentPresets.splice(idx, 1);
+        saveAllState();
+        renderAdminView();
+        renderTrackerView();
+      }
+    }
+
+    function resetAllDefaults() {
+      if (confirm("確定恢復初始預設課表？自訂更動將會清除。")) {
+        currentSchedule = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+        currentPresets = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+        saveAllState();
+        populateDateSelectors();
+        renderAdminView();
+        renderTimelineView();
+        renderTrackerView();
+        alert("已重置完畢！");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>

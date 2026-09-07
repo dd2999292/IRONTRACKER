@@ -62,7 +62,10 @@
     
     <!-- Date Switcher Bar -->
     <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between">
-      <div class="text-xs font-bold text-slate-300">記錄日期</div>
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs font-bold text-slate-300">記錄日期</span>
+        <button onclick="resetToToday()" class="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-2 py-0.5 rounded-md hover:bg-indigo-900 active:scale-95">回今天</button>
+      </div>
       <select id="dateSelect" onchange="onDateChange(this.value)" class="bg-slate-800 border border-slate-700 text-xs font-semibold text-indigo-300 rounded-lg px-2.5 py-1.5 focus:outline-none">
         <!-- Populated by JS -->
       </select>
@@ -210,7 +213,7 @@
   <!-- ==================== TAB 3: 管理後台 (ADMIN) ==================== -->
   <main id="viewAdmin" class="max-w-md mx-auto px-4 py-4 space-y-5 hidden">
     
-    <!-- 0. Google Sheets 雲端資料庫雙向同步專區 (NEW) -->
+    <!-- 0. Google Sheets 雲端資料庫雙向同步專區 -->
     <section class="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-emerald-500/40 rounded-2xl p-4 shadow-lg shadow-emerald-950/20">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
@@ -596,10 +599,19 @@
     let currentSchedule = {};
     let currentPresets = [];
     let appState = {};
-    let currentDate = "2026-09-07";
-    let adminCurrentDate = "2026-09-07";
+    let currentDate = "";
+    let adminCurrentDate = "";
     let latestAiParsed = null;
     let autoSyncTimer = null;
+
+    // 精確取得使用者裝置本地的 YYYY-MM-DD（避免 UTC 時區換日誤差）
+    function getTodayLocalISO() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
 
     function init() {
       const savedSchedule = localStorage.getItem("irontracker_schedule");
@@ -611,6 +623,18 @@
       const savedData = localStorage.getItem("irontracker_data");
       appState = savedData ? JSON.parse(savedData) : {};
 
+      // 自動定位今天的日期
+      const todayISO = getTodayLocalISO();
+      if (currentSchedule[todayISO]) {
+        currentDate = todayISO;
+        adminCurrentDate = todayISO;
+      } else {
+        // 若今天不在 9/7-9/24 區間內，預設選取課表第一天
+        const sortedDates = Object.keys(currentSchedule).sort();
+        currentDate = sortedDates[0] || "2026-09-07";
+        adminCurrentDate = currentDate;
+      }
+
       checkApiKeyStatus();
       checkGasStatus();
       populateDateSelectors();
@@ -619,11 +643,23 @@
       renderAdminView();
     }
 
+    function resetToToday() {
+      const todayISO = getTodayLocalISO();
+      if (currentSchedule[todayISO]) {
+        currentDate = todayISO;
+        document.getElementById("dateSelect").value = todayISO;
+        renderTrackerView();
+      } else {
+        alert("今天不在 9/7 – 9/24 衝刺課表區間內！");
+      }
+    }
+
     function populateDateSelectors() {
       const dates = Object.keys(currentSchedule).sort();
       const dateSelect = document.getElementById("dateSelect");
       const adminDateSelect = document.getElementById("adminDateSelect");
       const swapSelect = document.getElementById("swapTargetDateSelect");
+      const todayISO = getTodayLocalISO();
 
       dateSelect.innerHTML = "";
       adminDateSelect.innerHTML = "";
@@ -631,7 +667,8 @@
 
       dates.forEach(dStr => {
         const [y, m, d] = dStr.split("-");
-        const dayLabel = `${m}/${d} (${getDayName(dStr)})`;
+        const isToday = (dStr === todayISO);
+        const dayLabel = `${m}/${d} (${getDayName(dStr)})${isToday ? " ★今天" : ""}`;
         dateSelect.add(new Option(dayLabel, dStr));
         adminDateSelect.add(new Option(dayLabel, dStr));
         swapSelect.add(new Option(dayLabel, dStr));
@@ -709,7 +746,7 @@
       clearTimeout(autoSyncTimer);
       autoSyncTimer = setTimeout(() => {
         uploadToCloud(true);
-      }, 2500); // 2.5 秒防抖自動備份
+      }, 2500);
     }
 
     async function uploadToCloud(isSilent = false) {
@@ -730,8 +767,7 @@
       };
 
       try {
-        // 使用 text/plain 避免觸發 OPTIONS 預檢請求 (CORS Simple Request)
-        const resp = await fetch(url, {
+        await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify(payload),
@@ -1117,7 +1153,6 @@
       d.completedExercises[id] = !d.completedExercises[id];
       saveAllState();
       renderTrackerView();
-      renderTimelineView();
     }
     function addPresetFood(name, protein, cal) {
       getDayData(currentDate).dietLogs.push({ name, protein, cal });
@@ -1151,12 +1186,15 @@
       container.innerHTML = "";
 
       let sumCalRate = 0, sumProtRate = 0, sumWaterRate = 0;
+      const todayISO = getTodayLocalISO();
 
       dates.forEach(dStr => {
         const schedule = currentSchedule[dStr];
         const data = getDayData(dStr);
         const [y, m, d] = dStr.split("-");
-        const dayLabel = `${m}/${d} (${getDayName(dStr)})`;
+        const isToday = (dStr === todayISO);
+        const isSelected = (dStr === currentDate);
+        const dayLabel = `${m}/${d} (${getDayName(dStr)})${isToday ? " ★今天" : ""}`;
 
         const targetCal = schedule.targetCal || 3300;
         const targetProt = schedule.targetProt || 205;
@@ -1176,18 +1214,16 @@
         sumProtRate += protRate;
         sumWaterRate += waterRate;
 
-        const isToday = (dStr === currentDate);
-
         const card = document.createElement("div");
         card.className = `p-3 rounded-2xl border transition-all cursor-pointer ${
-          isToday ? "bg-slate-900 border-indigo-500 shadow-md shadow-indigo-500/10" : "bg-slate-900/90 border-slate-800 hover:border-slate-700"
+          isSelected ? "bg-slate-900 border-indigo-500 shadow-md shadow-indigo-500/10" : "bg-slate-900/90 border-slate-800 hover:border-slate-700"
         }`;
         card.onclick = () => jumpToDateInTracker(dStr);
 
         card.innerHTML = `
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-black ${isToday ? "text-indigo-400" : "text-white"}">${dayLabel}</span>
+              <span class="text-xs font-black ${isToday ? "text-amber-400" : (isSelected ? "text-indigo-400" : "text-white")}">${dayLabel}</span>
               <span class="text-[11px] text-slate-300 font-bold truncate max-w-[140px]">${schedule.title}</span>
             </div>
             <div class="flex items-center gap-1.5">

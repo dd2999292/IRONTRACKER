@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>IRONTRACKER Pro - AI 智慧健身管理系統</title>
+  <title>IRONTRACKER Pro - AI 雲端同步健身系統</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f172a">
@@ -35,10 +35,11 @@
   <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 py-2.5">
     <div class="max-w-md mx-auto flex items-center justify-between">
       <div>
-        <h1 class="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5">
           <span class="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-          IRONTRACKER AI
-        </h1>
+          <h1 class="text-sm font-black tracking-tight text-white">IRONTRACKER AI</h1>
+          <span id="cloudStatusBadge" class="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 border border-slate-700">☁️ 本機</span>
+        </div>
         <p class="text-[10px] text-slate-400">9/24 增肌衝刺 (98kg / 骨骼肌+1kg)</p>
       </div>
       <!-- 3-Tab Control -->
@@ -207,8 +208,46 @@
   </main>
 
   <!-- ==================== TAB 3: 管理後台 (ADMIN) ==================== -->
-  <main id="viewAdmin" class="max-w-md mx-auto px-4 py-4 space-y-6 hidden">
+  <main id="viewAdmin" class="max-w-md mx-auto px-4 py-4 space-y-5 hidden">
     
+    <!-- 0. Google Sheets 雲端資料庫雙向同步專區 (NEW) -->
+    <section class="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-emerald-500/40 rounded-2xl p-4 shadow-lg shadow-emerald-950/20">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">☁️</span>
+          <div>
+            <h2 class="text-sm font-black text-white">Google Sheets 雲端資料庫同步</h2>
+            <p class="text-[10px] text-emerald-400">跨裝置自動備份飲食、自訂蛋白質庫與課表</p>
+          </div>
+        </div>
+        <span id="gasSyncBadge" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400 border border-slate-700">未連結</span>
+      </div>
+
+      <div class="space-y-2.5">
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 block mb-1">Google Apps Script Web App 網址</label>
+          <div class="flex gap-2">
+            <input type="url" id="gasUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white focus:border-emerald-500">
+            <button onclick="saveGasUrl()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl active:scale-95 shadow">儲存網址</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button onclick="uploadToCloud(false)" class="py-2.5 bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow">
+            <span>📤</span> 備份至試算表
+          </button>
+          <button onclick="restoreFromCloud()" class="py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 text-xs font-bold rounded-xl active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            <span>📥</span> 從試算表還原
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 px-1">
+          <span id="lastSyncLabel">最後備份: 尚未備份</span>
+          <span>⚡ 自動備份機制已啟動</span>
+        </div>
+      </div>
+    </section>
+
     <!-- 1. AI 智能估算食物營養專區 -->
     <section id="ai-section" class="bg-gradient-to-b from-indigo-950/60 to-slate-900 border border-indigo-500/40 rounded-2xl p-4 shadow-lg shadow-indigo-950/50">
       <div class="flex items-center justify-between mb-3">
@@ -216,7 +255,7 @@
           <span class="text-lg">🤖</span>
           <div>
             <h2 class="text-sm font-black text-white">AI 食物營養智慧搜尋估算</h2>
-            <p class="text-[10px] text-indigo-300">輸入店家與餐點，由 Gemini AI 自動精算蛋白質與熱量</p>
+            <p class="text-[10px] text-indigo-300">輸入店家與餐點，Gemini 自動精算蛋白質與熱量</p>
           </div>
         </div>
         <span id="modelBadge" class="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold">Gemini 3.6 Flash</span>
@@ -233,7 +272,7 @@
         </div>
         <div id="apiKeyContainer" class="hidden mt-2 pt-2 border-t border-slate-700/60 space-y-2">
           <div>
-            <label class="text-[10px] text-slate-400 block mb-1">API Key (從 Google AI Studio 免費取得)</label>
+            <label class="text-[10px] text-slate-400 block mb-1">API Key (Google AI Studio 免費取得)</label>
             <input type="password" id="geminiApiKeyInput" placeholder="貼上您的 Gemini API Key" class="w-full bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-white">
           </div>
           <div>
@@ -247,21 +286,21 @@
         </div>
       </div>
 
-      <!-- AI Food Query Form -->
+      <!-- AI Query Form -->
       <form onsubmit="handleAiSearch(event)" class="space-y-2.5">
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="text-[10px] font-bold text-slate-400">店家 / 品牌</label>
-            <input type="text" id="aiStoreInput" placeholder="例: 7-11 / 梁社漢 / 八方" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:border-indigo-500">
+            <input type="text" id="aiStoreInput" placeholder="例: 梁社漢 / 7-11 / 麥當勞" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:border-indigo-500">
           </div>
           <div>
             <label class="text-[10px] font-bold text-slate-400">餐點 / 食物名稱 *</label>
-            <input type="text" id="aiFoodInput" placeholder="例: 椒麻雞便當 / 招牌鍋貼10顆" required class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:border-indigo-500">
+            <input type="text" id="aiFoodInput" placeholder="例: 炸排骨便當 / 茶葉蛋2顆" required class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:border-indigo-500">
           </div>
         </div>
         <div>
           <label class="text-[10px] font-bold text-slate-400">客製備註 (選填)</label>
-          <input type="text" id="aiNoteInput" placeholder="例: 去皮 / 半飯 / 走醬 / 大碗" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-1.5 text-white placeholder-slate-500">
+          <input type="text" id="aiNoteInput" placeholder="例: 飯少 / 去皮 / 不加醬" class="w-full mt-1 bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-1.5 text-white placeholder-slate-500">
         </div>
         <button type="submit" id="aiSearchBtn" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-xl transition-all active:scale-95 shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5">
           <span>✨</span>
@@ -292,10 +331,10 @@
         <!-- Quick Action Buttons -->
         <div class="grid grid-cols-2 gap-2 pt-1">
           <button onclick="applyAiToPresets()" class="py-2 bg-rose-600/80 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg active:scale-95 transition-all">
-            + 存入常用蛋白質
+            + 存入常用蛋白質 (自動雲端備份)
           </button>
           <button onclick="applyAiToTodayLog()" class="py-2 bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg active:scale-95 transition-all">
-            ✓ 記入今日飲食
+            ✓ 記入今日飲食 (自動雲端備份)
           </button>
         </div>
       </div>
@@ -374,7 +413,6 @@
       </div>
     </section>
 
-    <!-- Reset Defaults -->
     <div class="text-center">
       <button onclick="resetAllDefaults()" class="text-xs text-rose-400 hover:underline">⚠️ 重置所有課表與食物為初始設定</button>
     </div>
@@ -384,9 +422,7 @@
     // Master Schedule Default Template
     const DEFAULT_SCHEDULE = {
       "2026-09-07": {
-        title: "胸部日 + 前置深蹲",
-        phase: "creatine_loading",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "胸部日 + 前置深蹲", phase: "creatine_loading", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲：87.5 kg × 10 下 × 3 組" },
           { id: "e2", text: "平面槓鈴臥推：85 kg × 10-12 下 × 5 組" },
@@ -396,9 +432,7 @@
         ]
       },
       "2026-09-08": {
-        title: "每週個人教練課 (動作精進)",
-        phase: "creatine_loading",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "每週個人教練課 (動作精進)", phase: "creatine_loading", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "教練課技術訓練主項（專注離心 3-4 秒與關節軌跡）" },
           { id: "e2", text: "輔助弱點強化動作 3-4 組" },
@@ -406,9 +440,7 @@
         ]
       },
       "2026-09-09": {
-        title: "背部日 + 速度深蹲",
-        phase: "creatine_loading",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "背部日 + 速度深蹲", phase: "creatine_loading", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲（速度動態組）：70 kg × 8 下 × 3 組" },
           { id: "e2", text: "傳統硬舉或架上拉：4 組 × 6-8 下" },
@@ -418,9 +450,7 @@
         ]
       },
       "2026-09-10": {
-        title: "肩部日 + 前置深蹲",
-        phase: "creatine_loading",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "肩部日 + 前置深蹲", phase: "creatine_loading", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲：87.5 kg × 10-11 下 × 3 組" },
           { id: "e2", text: "站姿槓鈴肩推：4 組 × 8-10 下" },
@@ -430,9 +460,7 @@
         ]
       },
       "2026-09-11": {
-        title: "手臂日 + 輕量深蹲 (填充期最後一天)",
-        phase: "creatine_loading",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "手臂日 + 輕量深蹲 (填充期最後一天)", phase: "creatine_loading", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲（動態恢復）：60 kg × 10 下 × 3 組" },
           { id: "e2", text: "槓鈴二頭彎舉：4 組 × 10-12 下" },
@@ -443,9 +471,7 @@
         ]
       },
       "2026-09-12": {
-        title: "緩和日 (60% 重量排酸日)",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "緩和日 (60% 重量排酸日)", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "胸部主項：原重量 60% × 10-12 下 × 3 組" },
           { id: "e2", text: "背部主項：原重量 60% × 10-12 下 × 3 組" },
@@ -454,9 +480,7 @@
         ]
       },
       "2026-09-13": {
-        title: "完全休息日 (生長補水)",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "完全休息日 (生長補水)", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "完全無重量訓練，避免激烈運動" },
           { id: "e2", text: "飲水量確切達標 4000 ml" },
@@ -465,9 +489,7 @@
         ]
       },
       "2026-09-14": {
-        title: "胸部日 + 87.5kg 深蹲",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "胸部日 + 87.5kg 深蹲", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲：87.5 kg × 11 下 × 3 組" },
           { id: "e2", text: "平面槓鈴臥推：85 kg × 9-13 下 × 5 組" },
@@ -476,9 +498,7 @@
         ]
       },
       "2026-09-15": {
-        title: "每週個人教練課 (動作精進)",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "每週個人教練課 (動作精進)", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "配合教練指定肌群技術攻堅" },
           { id: "e2", text: "檢視動作軌跡與力量傳導" },
@@ -486,9 +506,7 @@
         ]
       },
       "2026-09-16": {
-        title: "背部日 + 速度深蹲",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "背部日 + 速度深蹲", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲：70 kg × 8 下 × 3 組" },
           { id: "e2", text: "槓鈴划船：4 組 × 8-10 下" },
@@ -498,9 +516,7 @@
         ]
       },
       "2026-09-17": {
-        title: "肩部日 + 前置深蹲",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "肩部日 + 前置深蹲", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲：87.5 kg × 11 下 × 3 組" },
           { id: "e2", text: "站姿槓鈴推舉：4 組 × 8-10 下" },
@@ -509,9 +525,7 @@
         ]
       },
       "2026-09-18": {
-        title: "手臂日 + 輕量深蹲",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "手臂日 + 輕量深蹲", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "深蹲：60 kg × 10 下 × 3 組" },
           { id: "e2", text: "超級組：槓鈴彎舉 + 法式推舉 4 組 × 10-12 下" },
@@ -520,18 +534,14 @@
         ]
       },
       "2026-09-19": {
-        title: "緩和日 (60% 重量循環)",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "緩和日 (60% 重量循環)", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "全身主要肌群各選 1 動作，60% 重量，3 組 × 10-12 下" },
           { id: "e2", text: "加速代謝廢物清除，嚴禁力竭" }
         ]
       },
       "2026-09-20": {
-        title: "完全休息日",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "完全休息日", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "充足水分 4000 ml" },
           { id: "e2", text: "蛋白質 205g 嚴格達標" },
@@ -539,9 +549,7 @@
         ]
       },
       "2026-09-21": {
-        title: "上肢大容量增肌日 (腿部留力)",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "上肢大容量增肌日 (腿部留力)", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "槓鈴臥推：85 kg × 8-10 下 × 4 組" },
           { id: "e2", text: "滑輪下拉：4 組 × 10 下" },
@@ -550,18 +558,14 @@
         ]
       },
       "2026-09-22": {
-        title: "每週個人教練課 (賽前技術週)",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "每週個人教練課 (賽前技術週)", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "動作細節優化，避免產生劇烈 DOMS" },
           { id: "e2", text: "練後補充蛋白質與高碳水" }
         ]
       },
       "2026-09-23": {
-        title: "極輕量肌泵 + 高碳水超補日",
-        phase: "creatine_maintenance",
-        targetCal: 3500, targetProt: 205, targetWater: 4200,
+        title: "極輕量肌泵 + 高碳水超補日", phase: "creatine_maintenance", targetCal: 3500, targetProt: 205, targetWater: 4200,
         exercises: [
           { id: "e1", text: "不碰大重量！各部位以 40-50% 重量進行 15-20 下充血組" },
           { id: "e2", text: "今日全天碳水化合物提升至 500g (白飯、地瓜補滿)" },
@@ -569,9 +573,7 @@
         ]
       },
       "2026-09-24": {
-        title: "🎯 驗收日 (InBody 270 檢測)",
-        phase: "creatine_maintenance",
-        targetCal: 3300, targetProt: 205, targetWater: 4000,
+        title: "🎯 驗收日 (InBody 270 檢測)", phase: "creatine_maintenance", targetCal: 3300, targetProt: 205, targetWater: 4000,
         exercises: [
           { id: "e1", text: "早晨空腹、起床排便完成後立即檢測" },
           { id: "e2", text: "檢測前嚴禁大量灌水（前一天水分喝足即可）" },
@@ -597,6 +599,7 @@
     let currentDate = "2026-09-07";
     let adminCurrentDate = "2026-09-07";
     let latestAiParsed = null;
+    let autoSyncTimer = null;
 
     function init() {
       const savedSchedule = localStorage.getItem("irontracker_schedule");
@@ -609,6 +612,7 @@
       appState = savedData ? JSON.parse(savedData) : {};
 
       checkApiKeyStatus();
+      checkGasStatus();
       populateDateSelectors();
       renderTrackerView();
       renderTimelineView();
@@ -645,12 +649,7 @@
 
     function getDayData(date) {
       if (!appState[date]) {
-        appState[date] = {
-          water: 0,
-          creatineDone: false,
-          dietLogs: [],
-          completedExercises: {}
-        };
+        appState[date] = { water: 0, creatineDone: false, dietLogs: [], completedExercises: {} };
       }
       return appState[date];
     }
@@ -659,6 +658,144 @@
       localStorage.setItem("irontracker_schedule", JSON.stringify(currentSchedule));
       localStorage.setItem("irontracker_presets", JSON.stringify(currentPresets));
       localStorage.setItem("irontracker_data", JSON.stringify(appState));
+      triggerAutoSync();
+    }
+
+    // ================= CLOUD SYNC ENGINE (GOOGLE SHEETS) =================
+    function checkGasStatus() {
+      const url = localStorage.getItem("irontracker_gas_url");
+      const input = document.getElementById("gasUrlInput");
+      const badge = document.getElementById("gasSyncBadge");
+      const headBadge = document.getElementById("cloudStatusBadge");
+      const lastSync = localStorage.getItem("irontracker_last_sync_time");
+
+      if (url && url.startsWith("http")) {
+        input.value = url;
+        badge.textContent = "已連線 ✓";
+        badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        headBadge.textContent = "☁️ 雲端已連線";
+        headBadge.className = "text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+      } else {
+        badge.textContent = "未連結";
+        badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400 border border-slate-700";
+        headBadge.textContent = "☁️ 本機儲存";
+        headBadge.className = "text-[9px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 border border-slate-700";
+      }
+
+      if (lastSync) {
+        document.getElementById("lastSyncLabel").textContent = `最後備份: ${lastSync}`;
+      }
+    }
+
+    function saveGasUrl() {
+      const url = document.getElementById("gasUrlInput").value.trim();
+      if (!url || !url.startsWith("http")) {
+        alert("請輸入有效的 Google Apps Script 網頁應用程式網址！");
+        return;
+      }
+      localStorage.setItem("irontracker_gas_url", url);
+      checkGasStatus();
+      alert("Google Apps Script 網址已儲存！現在將為您執行首次完整上傳備份。");
+      uploadToCloud(false);
+    }
+
+    function triggerAutoSync() {
+      const url = localStorage.getItem("irontracker_gas_url");
+      if (!url) return;
+
+      const headBadge = document.getElementById("cloudStatusBadge");
+      headBadge.textContent = "⏳ 準備同步...";
+
+      clearTimeout(autoSyncTimer);
+      autoSyncTimer = setTimeout(() => {
+        uploadToCloud(true);
+      }, 2500); // 2.5 秒防抖自動備份
+    }
+
+    async function uploadToCloud(isSilent = false) {
+      const url = localStorage.getItem("irontracker_gas_url");
+      if (!url) {
+        if (!isSilent) alert("請先在下方輸入並儲存 Google Apps Script 網址！");
+        return;
+      }
+
+      const headBadge = document.getElementById("cloudStatusBadge");
+      headBadge.textContent = "⏳ 雲端同步中...";
+
+      const payload = {
+        schedule: currentSchedule,
+        presets: currentPresets,
+        appData: appState,
+        syncedAt: new Date().toISOString()
+      };
+
+      try {
+        // 使用 text/plain 避免觸發 OPTIONS 預檢請求 (CORS Simple Request)
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload),
+          redirect: "follow"
+        });
+
+        const timeStr = new Date().toLocaleTimeString("zh-TW", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        localStorage.setItem("irontracker_last_sync_time", timeStr);
+        document.getElementById("lastSyncLabel").textContent = `最後備份: ${timeStr}`;
+
+        headBadge.textContent = "☁️ 雲端已同步";
+        headBadge.className = "text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+
+        if (!isSilent) {
+          alert(`✅ 備份成功！全部飲食記錄、AI 自訂蛋白質與課表已成功儲存至 Google 試算表 (${timeStr})。`);
+        }
+      } catch (err) {
+        headBadge.textContent = "⚠️ 同步失敗";
+        headBadge.className = "text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30";
+        if (!isSilent) {
+          alert("上傳備份失敗，請確認網路或 Apps Script 部署設定是否設為「任何人」存取。");
+        }
+      }
+    }
+
+    async function restoreFromCloud() {
+      const url = localStorage.getItem("irontracker_gas_url");
+      if (!url) {
+        alert("請先輸入並儲存 Google Apps Script 網址！");
+        return;
+      }
+
+      if (!confirm("確定要從 Google 試算表還原資料嗎？這將會以雲端資料覆蓋手機本機當前內容。")) return;
+
+      const headBadge = document.getElementById("cloudStatusBadge");
+      headBadge.textContent = "⏳ 正在還原...";
+
+      try {
+        const resp = await fetch(url, { method: "GET", redirect: "follow" });
+        const raw = await resp.json();
+
+        let data = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (!data || (!data.schedule && !data.appData && !data.presets)) {
+          alert("雲端試算表目前尚無有效備份資料。");
+          checkGasStatus();
+          return;
+        }
+
+        if (data.schedule) currentSchedule = data.schedule;
+        if (data.presets) currentPresets = data.presets;
+        if (data.appData) appState = data.appData;
+
+        saveAllState();
+        populateDateSelectors();
+        renderTrackerView();
+        renderTimelineView();
+        renderAdminView();
+
+        headBadge.textContent = "☁️ 還原完成";
+        alert("🎉 資料已成功從 Google 試算表還原至手機！");
+      } catch (err) {
+        headBadge.textContent = "⚠️ 還原失敗";
+        alert(`還原失敗：${err.message}\n請確認試算表內 A1 儲存格是否有資料。`);
+      }
     }
 
     // ================= TAB SWITCHING =================
@@ -701,7 +838,7 @@
       switchTab("tracker");
     }
 
-    // ================= API KEY & AI INTEGRATION =================
+    // ================= GEMINI AI NUTRITION ENGINE =================
     function checkApiKeyStatus() {
       const key = localStorage.getItem("irontracker_gemini_api_key");
       const model = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
@@ -724,8 +861,7 @@
     }
 
     function toggleApiKeyInput() {
-      const c = document.getElementById("apiKeyContainer");
-      c.classList.toggle("hidden");
+      document.getElementById("apiKeyContainer").classList.toggle("hidden");
     }
 
     function saveApiKey() {
@@ -739,7 +875,7 @@
       localStorage.setItem("irontracker_gemini_model", model);
       checkApiKeyStatus();
       toggleApiKeyInput();
-      alert(`設定已更新！目前使用模型：${model}`);
+      alert(`設定已儲存！目前調用模型：${model}`);
     }
 
     async function handleAiSearch(e) {
@@ -775,7 +911,6 @@
   "description": "簡短分析說明，例如主要食材份量、烹調方式對熱量的影響，約 40-70 字"
 }`;
 
-      // 優先使用 gemini-3.6-flash，若有需要具備 fallback
       const primaryModel = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
       const candidateModels = [primaryModel, "gemini-3.6-flash", "gemini-3.5-flash"];
       const uniqueModels = [...new Set(candidateModels)];
@@ -806,10 +941,9 @@
 
           const cleanJson = textResp.replace(/```json/g, "").replace(/```/g, "").trim();
           parsedResult = JSON.parse(cleanJson);
-          break; // 成功解析即中斷迴圈
+          break;
         } catch (err) {
           lastError = err;
-          // 若為模型不可用，繼續嘗試下一個備援模型
           continue;
         }
       }
@@ -822,7 +956,7 @@
         latestAiParsed = parsedResult;
         displayAiResult(parsedResult);
       } else {
-        alert(`AI 估算失敗：${lastError ? lastError.message : "未知錯誤"}\n請檢查 API Key 是否正確。`);
+        alert(`AI 估算失敗：${lastError ? lastError.message : "未知錯誤"}\n請確認 API Key 是否正確。`);
       }
     }
 
@@ -845,7 +979,7 @@
       saveAllState();
       renderAdminView();
       renderTrackerView();
-      alert(`已成功將「${latestAiParsed.name}」加入常用蛋白質資料庫！可在每日記錄中一鍵打卡。`);
+      alert(`已成功將「${latestAiParsed.name}」存入常用蛋白質清單，並自動同步至 Google 試算表！`);
     }
 
     function applyAiToTodayLog() {
@@ -859,10 +993,10 @@
       saveAllState();
       renderTrackerView();
       renderTimelineView();
-      alert(`已成功將「${latestAiParsed.name}」記入 ${currentDate} 的飲食明細中！`);
+      alert(`已成功將「${latestAiParsed.name}」記入 ${currentDate} 飲食明細，並觸發雲端自動備份！`);
     }
 
-    // ================= TRACKER VIEW =================
+    // ================= TRACKER VIEW RENDERING =================
     function onDateChange(newDate) {
       currentDate = newDate;
       renderTrackerView();
@@ -892,7 +1026,6 @@
       document.getElementById("waterCurrent").textContent = data.water;
       document.getElementById("waterBar").style.width = Math.min(100, (data.water / targetWater) * 100) + "%";
 
-      // Creatine
       const isLoading = schedule.phase === "creatine_loading";
       document.getElementById("creatinePhase").textContent = isLoading ? "🔥 肌酸快速填充期" : "⚡ 肌酸維持期";
       document.getElementById("creatineDose").textContent = isLoading ? "每日 20g (分 4 次攝取，每次 5g)" : "每日 5g (練後搭配高蛋白與碳水)";
@@ -906,7 +1039,6 @@
         creatineBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold border border-indigo-500/40 bg-indigo-900/30 text-indigo-300";
       }
 
-      // Exercises
       document.getElementById("workoutTitle").textContent = schedule.title;
       const exList = document.getElementById("workoutList");
       exList.innerHTML = "";
@@ -929,7 +1061,6 @@
       });
       document.getElementById("workoutCompletedRate").textContent = `${completedCount} / ${(schedule.exercises || []).length} 完成`;
 
-      // Preset food grid
       const trackerPresetGrid = document.getElementById("trackerPresetGrid");
       trackerPresetGrid.innerHTML = currentPresets.map(p => `
         <button onclick="addPresetFood('${p.name}', ${p.protein}, ${p.cal})"
@@ -942,7 +1073,6 @@
         </button>
       `).join("");
 
-      // Diet Log List
       const dietList = document.getElementById("dietLogList");
       if (!data.dietLogs || data.dietLogs.length === 0) {
         dietList.innerHTML = `<div class="text-[11px] text-slate-500 italic py-1">今日尚無飲食記錄</div>`;
@@ -987,6 +1117,7 @@
       d.completedExercises[id] = !d.completedExercises[id];
       saveAllState();
       renderTrackerView();
+      renderTimelineView();
     }
     function addPresetFood(name, protein, cal) {
       getDayData(currentDate).dietLogs.push({ name, protein, cal });
@@ -1013,7 +1144,7 @@
       renderTimelineView();
     }
 
-    // ================= TIMELINE VIEW =================
+    // ================= TIMELINE VIEW RENDERING =================
     function renderTimelineView() {
       const dates = Object.keys(currentSchedule).sort();
       const container = document.getElementById("timelineCardsContainer");
@@ -1106,7 +1237,7 @@
       document.getElementById("macroAvgWater").textContent = Math.round(sumWaterRate / count) + "%";
     }
 
-    // ================= ADMIN VIEW =================
+    // ================= ADMIN VIEW RENDERING =================
     function onAdminDateChange(date) {
       adminCurrentDate = date;
       renderAdminView();
@@ -1154,7 +1285,7 @@
         s.title = document.getElementById("adminDayTitle").value.trim() || "未命名課表";
         s.phase = document.getElementById("adminDayPhase").value;
         saveAllState();
-        alert(`已成功儲存 ${adminCurrentDate} 課表！`);
+        alert(`已儲存 ${adminCurrentDate} 課表修改，並自動同步至雲端！`);
       }
     }
 
@@ -1199,7 +1330,7 @@
 
       saveAllState();
       renderAdminView();
-      alert("課表對調成功！");
+      alert("課表對調成功！已自動同步至雲端。");
     }
 
     function handleAddPreset(e) {

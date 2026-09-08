@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入輕量流暢的觸控拖曳引擎 SortableJS -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -27,6 +29,15 @@
       margin: 0;
     }
     .tap-highlight-transparent { -webkit-tap-highlight-color: transparent; }
+    /* 拖曳中樣式微調 */
+    .sortable-ghost {
+      opacity: 0.35 !important;
+      background-color: #312e81 !important;
+      border: 2px dashed #818cf8 !important;
+    }
+    .sortable-chosen {
+      cursor: grabbing !important;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-24 tap-highlight-transparent">
@@ -183,6 +194,8 @@
 
   <!-- ==================== TAB 2: 週期進度總表 (TIMELINE) ==================== -->
   <main id="viewTimeline" class="max-w-md mx-auto px-4 py-4 space-y-4 hidden">
+    
+    <!-- Macro Overview -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
       <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">18 天增肌衝刺整體平均達成率</div>
       <div class="grid grid-cols-3 gap-2 text-center">
@@ -201,12 +214,19 @@
       </div>
     </section>
 
-    <section class="space-y-2.5">
+    <!-- Draggable Timeline Matrix -->
+    <section class="space-y-2">
       <div class="flex items-center justify-between px-1">
-        <span class="text-xs font-bold text-slate-300">9/7 – 9/24 每日指標達成矩陣</span>
-        <span class="text-[10px] text-slate-500">點選卡片可切換該日記錄</span>
+        <span class="text-xs font-bold text-slate-300">課表週期排程</span>
+        <span class="text-[10px] text-indigo-300 bg-indigo-950/60 border border-indigo-800/50 px-2 py-0.5 rounded-md flex items-center gap-1">
+          <span>⠿</span> 按住手把上下拖曳調動
+        </span>
       </div>
-      <div id="timelineCardsContainer" class="space-y-2"></div>
+      
+      <!-- Sortable Container -->
+      <div id="timelineCardsContainer" class="space-y-2">
+        <!-- Rendered by JS -->
+      </div>
     </section>
   </main>
 
@@ -370,23 +390,13 @@
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
       <div class="flex items-center gap-2 mb-3">
         <span class="w-2 h-4 bg-indigo-500 rounded-full"></span>
-        <h2 class="text-sm font-black text-white">課表彈性挪動與編修</h2>
+        <h2 class="text-sm font-black text-white">單日課表細部編修 (動作與組數)</h2>
       </div>
 
       <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-3 mb-4">
         <div>
-          <label class="text-[10px] font-bold uppercase text-slate-400">目前編輯日期</label>
+          <label class="text-[10px] font-bold uppercase text-slate-400">編輯日期</label>
           <select id="adminDateSelect" onchange="onAdminDateChange(this.value)" class="w-full mt-1 bg-slate-800 border border-slate-600 text-xs font-bold text-indigo-300 rounded-lg px-2.5 py-2"></select>
-        </div>
-
-        <!-- Schedule Swap -->
-        <div class="p-2.5 bg-indigo-950/30 border border-indigo-800/40 rounded-xl space-y-2">
-          <div class="text-xs font-bold text-indigo-200">🔄 雙向課表快速對調</div>
-          <p class="text-[10px] text-slate-400 leading-relaxed">選擇目標日期即可瞬間交換兩日課表內容：</p>
-          <div class="flex gap-2">
-            <select id="swapTargetDateSelect" class="flex-1 bg-slate-800 border border-slate-600 text-xs rounded-lg px-2 py-1.5 text-slate-200"></select>
-            <button onclick="swapSchedules()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg active:scale-95 shadow">對調課表</button>
-          </div>
         </div>
       </div>
 
@@ -422,7 +432,7 @@
   </main>
 
   <script>
-    // Master Schedule Default Template
+    // Master Schedule Template
     const DEFAULT_SCHEDULE = {
       "2026-09-07": {
         title: "胸部日 + 前置深蹲", phase: "creatine_loading", targetCal: 3300, targetProt: 205, targetWater: 4000,
@@ -603,8 +613,8 @@
     let adminCurrentDate = "";
     let latestAiParsed = null;
     let autoSyncTimer = null;
+    let timelineSortableInstance = null;
 
-    // 精確取得使用者裝置本地的 YYYY-MM-DD（避免 UTC 時區換日誤差）
     function getTodayLocalISO() {
       const now = new Date();
       const year = now.getFullYear();
@@ -623,13 +633,11 @@
       const savedData = localStorage.getItem("irontracker_data");
       appState = savedData ? JSON.parse(savedData) : {};
 
-      // 自動定位今天的日期
       const todayISO = getTodayLocalISO();
       if (currentSchedule[todayISO]) {
         currentDate = todayISO;
         adminCurrentDate = todayISO;
       } else {
-        // 若今天不在 9/7-9/24 區間內，預設選取課表第一天
         const sortedDates = Object.keys(currentSchedule).sort();
         currentDate = sortedDates[0] || "2026-09-07";
         adminCurrentDate = currentDate;
@@ -650,7 +658,7 @@
         document.getElementById("dateSelect").value = todayISO;
         renderTrackerView();
       } else {
-        alert("今天不在 9/7 – 9/24 衝刺課表區間內！");
+        alert("今天不在衝刺課表區間內！");
       }
     }
 
@@ -658,12 +666,10 @@
       const dates = Object.keys(currentSchedule).sort();
       const dateSelect = document.getElementById("dateSelect");
       const adminDateSelect = document.getElementById("adminDateSelect");
-      const swapSelect = document.getElementById("swapTargetDateSelect");
       const todayISO = getTodayLocalISO();
 
       dateSelect.innerHTML = "";
       adminDateSelect.innerHTML = "";
-      swapSelect.innerHTML = "";
 
       dates.forEach(dStr => {
         const [y, m, d] = dStr.split("-");
@@ -671,12 +677,10 @@
         const dayLabel = `${m}/${d} (${getDayName(dStr)})${isToday ? " ★今天" : ""}`;
         dateSelect.add(new Option(dayLabel, dStr));
         adminDateSelect.add(new Option(dayLabel, dStr));
-        swapSelect.add(new Option(dayLabel, dStr));
       });
 
       dateSelect.value = currentDate;
       adminDateSelect.value = adminCurrentDate;
-      if (dates.length > 1) swapSelect.value = dates[1];
     }
 
     function getDayName(dStr) {
@@ -698,7 +702,7 @@
       triggerAutoSync();
     }
 
-    // ================= CLOUD SYNC ENGINE (GOOGLE SHEETS) =================
+    // ================= CLOUD SYNC ENGINE =================
     function checkGasStatus() {
       const url = localStorage.getItem("irontracker_gas_url");
       const input = document.getElementById("gasUrlInput");
@@ -746,13 +750,13 @@
       clearTimeout(autoSyncTimer);
       autoSyncTimer = setTimeout(() => {
         uploadToCloud(true);
-      }, 2500);
+      }, 2000);
     }
 
     async function uploadToCloud(isSilent = false) {
       const url = localStorage.getItem("irontracker_gas_url");
       if (!url) {
-        if (!isSilent) alert("請先在下方輸入並儲存 Google Apps Script 網址！");
+        if (!isSilent) alert("請先輸入並儲存 Google Apps Script 網址！");
         return;
       }
 
@@ -782,13 +786,13 @@
         headBadge.className = "text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
 
         if (!isSilent) {
-          alert(`✅ 備份成功！全部飲食記錄、AI 自訂蛋白質與課表已成功儲存至 Google 試算表 (${timeStr})。`);
+          alert(`✅ 備份成功！已同步至 Google 試算表 (${timeStr})。`);
         }
       } catch (err) {
         headBadge.textContent = "⚠️ 同步失敗";
         headBadge.className = "text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30";
         if (!isSilent) {
-          alert("上傳備份失敗，請確認網路或 Apps Script 部署設定是否設為「任何人」存取。");
+          alert("上傳備份失敗，請確認網路或 Apps Script 部署設定。");
         }
       }
     }
@@ -800,7 +804,7 @@
         return;
       }
 
-      if (!confirm("確定要從 Google 試算表還原資料嗎？這將會以雲端資料覆蓋手機本機當前內容。")) return;
+      if (!confirm("確定要從 Google 試算表還原資料嗎？這將會覆蓋本機目前的記錄。")) return;
 
       const headBadge = document.getElementById("cloudStatusBadge");
       headBadge.textContent = "⏳ 正在還原...";
@@ -811,7 +815,7 @@
 
         let data = typeof raw === "string" ? JSON.parse(raw) : raw;
         if (!data || (!data.schedule && !data.appData && !data.presets)) {
-          alert("雲端試算表目前尚無有效備份資料。");
+          alert("雲端試算表目前尚無備份資料。");
           checkGasStatus();
           return;
         }
@@ -830,7 +834,7 @@
         alert("🎉 資料已成功從 Google 試算表還原至手機！");
       } catch (err) {
         headBadge.textContent = "⚠️ 還原失敗";
-        alert(`還原失敗：${err.message}\n請確認試算表內 A1 儲存格是否有資料。`);
+        alert(`還原失敗：${err.message}`);
       }
     }
 
@@ -874,7 +878,7 @@
       switchTab("tracker");
     }
 
-    // ================= GEMINI AI NUTRITION ENGINE =================
+    // ================= GEMINI AI ENGINE =================
     function checkApiKeyStatus() {
       const key = localStorage.getItem("irontracker_gemini_api_key");
       const model = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
@@ -1015,7 +1019,7 @@
       saveAllState();
       renderAdminView();
       renderTrackerView();
-      alert(`已成功將「${latestAiParsed.name}」存入常用蛋白質清單，並自動同步至 Google 試算表！`);
+      alert(`已成功將「${latestAiParsed.name}」存入常用蛋白質清單！`);
     }
 
     function applyAiToTodayLog() {
@@ -1029,7 +1033,7 @@
       saveAllState();
       renderTrackerView();
       renderTimelineView();
-      alert(`已成功將「${latestAiParsed.name}」記入 ${currentDate} 飲食明細，並觸發雲端自動備份！`);
+      alert(`已成功將「${latestAiParsed.name}」記入 ${currentDate} 飲食明細！`);
     }
 
     // ================= TRACKER VIEW RENDERING =================
@@ -1153,6 +1157,7 @@
       d.completedExercises[id] = !d.completedExercises[id];
       saveAllState();
       renderTrackerView();
+      renderTimelineView();
     }
     function addPresetFood(name, protein, cal) {
       getDayData(currentDate).dietLogs.push({ name, protein, cal });
@@ -1179,7 +1184,7 @@
       renderTimelineView();
     }
 
-    // ================= TIMELINE VIEW RENDERING =================
+    // ================= TIMELINE VIEW (WITH DRAG & DROP) =================
     function renderTimelineView() {
       const dates = Object.keys(currentSchedule).sort();
       const container = document.getElementById("timelineCardsContainer");
@@ -1188,7 +1193,7 @@
       let sumCalRate = 0, sumProtRate = 0, sumWaterRate = 0;
       const todayISO = getTodayLocalISO();
 
-      dates.forEach(dStr => {
+      dates.forEach((dStr, index) => {
         const schedule = currentSchedule[dStr];
         const data = getDayData(dStr);
         const [y, m, d] = dStr.split("-");
@@ -1214,25 +1219,41 @@
         sumProtRate += protRate;
         sumWaterRate += waterRate;
 
+        // 預覽動作前 2 項
+        const previewExercises = (schedule.exercises || []).slice(0, 2).map(e => e.text).join(" ｜ ");
+
         const card = document.createElement("div");
-        card.className = `p-3 rounded-2xl border transition-all cursor-pointer ${
-          isSelected ? "bg-slate-900 border-indigo-500 shadow-md shadow-indigo-500/10" : "bg-slate-900/90 border-slate-800 hover:border-slate-700"
+        card.setAttribute("data-date", dStr);
+        card.className = `p-3 rounded-2xl border transition-all select-none relative flex flex-col justify-between ${
+          isSelected ? "bg-slate-900 border-indigo-500 shadow-md shadow-indigo-500/20" : "bg-slate-900/90 border-slate-800"
         }`;
-        card.onclick = () => jumpToDateInTracker(dStr);
 
         card.innerHTML = `
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-black ${isToday ? "text-amber-400" : (isSelected ? "text-indigo-400" : "text-white")}">${dayLabel}</span>
-              <span class="text-[11px] text-slate-300 font-bold truncate max-w-[140px]">${schedule.title}</span>
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <!-- Left Info (點擊跳轉表記錄) -->
+            <div class="flex-1 cursor-pointer" onclick="jumpToDateInTracker('${dStr}')">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-black ${isToday ? "text-amber-400" : (isSelected ? "text-indigo-400" : "text-white")}">${dayLabel}</span>
+                <span class="text-xs text-slate-200 font-bold">${schedule.title}</span>
+              </div>
+              <div class="text-[10px] text-slate-500 truncate mt-0.5 max-w-[230px]">${previewExercises || "無設定動作"}</div>
             </div>
-            <div class="flex items-center gap-1.5">
-              ${data.creatineDone ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">肌酸✓</span>' : '<span class="text-[9px] text-slate-600">肌酸-</span>'}
-              <span class="text-[10px] text-slate-400">進入記錄 →</span>
+
+            <!-- Right Controls: 肌酸狀態 + 拖曳手把 -->
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${data.creatineDone ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-600'}">
+                ${data.creatineDone ? '肌酸✓' : '肌酸-'}
+              </span>
+
+              <!-- 專屬拖曳手把 (加大感應區避免滑動誤觸) -->
+              <div class="drag-handle touch-none cursor-grab active:cursor-grabbing p-2 text-slate-400 hover:text-indigo-400 rounded-lg bg-slate-800/80 border border-slate-700/60" title="按住拖曳更換順序">
+                <span class="text-sm font-black leading-none block">⠿</span>
+              </div>
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-2">
+          <!-- Triple Progress Bar Matrix -->
+          <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 cursor-pointer" onclick="jumpToDateInTracker('${dStr}')">
             <div class="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
               <div class="flex justify-between text-[9px] font-semibold text-slate-400">
                 <span>熱量</span>
@@ -1271,6 +1292,48 @@
       document.getElementById("macroAvgCal").textContent = Math.round(sumCalRate / count) + "%";
       document.getElementById("macroAvgProt").textContent = Math.round(sumProtRate / count) + "%";
       document.getElementById("macroAvgWater").textContent = Math.round(sumWaterRate / count) + "%";
+
+      // 啟動 / 重建 Sortable 拖曳監聽
+      initTimelineDragAndDrop();
+    }
+
+    function initTimelineDragAndDrop() {
+      const container = document.getElementById("timelineCardsContainer");
+      if (!container) return;
+
+      if (timelineSortableInstance) {
+        timelineSortableInstance.destroy();
+      }
+
+      timelineSortableInstance = new Sortable(container, {
+        handle: '.drag-handle',
+        animation: 200,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        delay: 50,
+        delayOnTouchOnly: true, // 手機觸控時長按 50ms 啟動，防止滑動頁面時誤抓
+        onEnd: function (evt) {
+          if (evt.oldIndex === evt.newIndex) return;
+
+          const dates = Object.keys(currentSchedule).sort();
+          // 取出原本按照日期排序的課表物件陣列
+          const workoutsArray = dates.map(d => currentSchedule[d]);
+
+          // 將陣列依照拖曳位移重新排列
+          const [movedWorkout] = workoutsArray.splice(evt.oldIndex, 1);
+          workoutsArray.splice(evt.newIndex, 0, movedWorkout);
+
+          // 重新依序指派回固定的日曆日期
+          dates.forEach((dStr, idx) => {
+            currentSchedule[dStr] = workoutsArray[idx];
+          });
+
+          saveAllState();
+          renderTimelineView();
+          renderTrackerView();
+          renderAdminView();
+        }
+      });
     }
 
     // ================= ADMIN VIEW RENDERING =================
@@ -1321,7 +1384,7 @@
         s.title = document.getElementById("adminDayTitle").value.trim() || "未命名課表";
         s.phase = document.getElementById("adminDayPhase").value;
         saveAllState();
-        alert(`已儲存 ${adminCurrentDate} 課表修改，並自動同步至雲端！`);
+        alert(`已儲存 ${adminCurrentDate} 課表修改！`);
       }
     }
 
@@ -1350,23 +1413,6 @@
       list[targetIdx] = temp;
       saveAllState();
       renderAdminView();
-    }
-
-    function swapSchedules() {
-      const targetDate = document.getElementById("swapTargetDateSelect").value;
-      if (targetDate === adminCurrentDate) {
-        alert("請選擇與目前編輯日不同的日期！");
-        return;
-      }
-      if (!confirm(`確定對調【${adminCurrentDate}】與【${targetDate}】的課表嗎？`)) return;
-
-      const temp = JSON.parse(JSON.stringify(currentSchedule[adminCurrentDate]));
-      currentSchedule[adminCurrentDate] = JSON.parse(JSON.stringify(currentSchedule[targetDate]));
-      currentSchedule[targetDate] = temp;
-
-      saveAllState();
-      renderAdminView();
-      alert("課表對調成功！已自動同步至雲端。");
     }
 
     function handleAddPreset(e) {

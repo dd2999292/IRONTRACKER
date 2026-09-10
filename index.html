@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 引入輕量流暢的觸控拖曳引擎 SortableJS -->
+  <!-- SortableJS 觸控拖曳引擎 -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script>
     tailwind.config = {
@@ -29,7 +29,6 @@
       margin: 0;
     }
     .tap-highlight-transparent { -webkit-tap-highlight-color: transparent; }
-    /* 拖曳中樣式微調 */
     .sortable-ghost {
       opacity: 0.35 !important;
       background-color: #312e81 !important;
@@ -96,12 +95,12 @@
         </div>
       </div>
 
-      <!-- Protein -->
+      <!-- Protein (改為尚未攝取/目標值，顯示負數) -->
       <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl flex flex-col justify-between">
-        <div class="text-[11px] font-medium text-slate-400">蛋白質 (g)</div>
+        <div class="text-[11px] font-medium text-slate-400">尚未攝取 (g)</div>
         <div class="my-1">
-          <span id="protCurrent" class="text-lg font-black text-rose-400">0</span>
-          <span class="text-[10px] text-slate-500">/ 205</span>
+          <span id="protCurrent" class="text-lg font-black text-rose-400">-205</span>
+          <span id="protTargetLabel" class="text-[10px] text-slate-500">/ 205</span>
         </div>
         <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
           <div id="protBar" class="bg-rose-500 h-full w-0 transition-all duration-300"></div>
@@ -190,12 +189,65 @@
         <div id="dietLogList" class="space-y-1.5 max-h-44 overflow-y-auto"></div>
       </div>
     </section>
+
+    <!-- ================= 蛋白質欠債區 (NEW) ================= -->
+    <section class="bg-gradient-to-b from-slate-900 via-slate-900 to-rose-950/30 border border-rose-500/40 rounded-2xl p-4 shadow-xl shadow-rose-950/20 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🥩</span>
+          <div>
+            <h2 class="text-sm font-black text-white">蛋白質欠債區</h2>
+            <p class="text-[10px] text-rose-300/80">自動計算今日蛋白質缺額，由 AI 客製補充策略</p>
+          </div>
+        </div>
+        <div id="debtBadge" class="text-xs font-black px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40">
+          欠缺: 0g
+        </div>
+      </div>
+
+      <!-- AI 觸發按鈕 -->
+      <button onclick="getAiProteinAdvice()" id="debtAiBtn" class="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold rounded-xl transition-all active:scale-95 shadow-md shadow-rose-600/30 flex items-center justify-center gap-1.5">
+        <span>✨</span>
+        <span id="debtAiBtnText">AI 建議補充方式 (依當前欠額計算)</span>
+      </button>
+
+      <!-- AI 建議結果容器 -->
+      <div id="debtResultBox" class="hidden space-y-3 pt-1">
+        <!-- 簡短分析指引 -->
+        <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl">
+          <div class="text-[11px] font-bold text-rose-300 flex items-center gap-1">
+            <span>💡</span> 營養師建議方針
+          </div>
+          <p id="debtAdviceText" class="text-xs text-slate-300 mt-1 leading-relaxed"></p>
+        </div>
+
+        <!-- 建議補充食物卡片清單 -->
+        <div id="debtItemsContainer" class="space-y-2">
+          <!-- Injected via JS -->
+        </div>
+
+        <!-- 三種偏好追加選項 -->
+        <div class="pt-2 border-t border-slate-800">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">想要特定型態？點擊重新評估偏好：</div>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="getAiProteinAdvice('飲料類 (如高蛋白飲品、高纖豆漿、超商即飲)')" class="py-2 px-1.5 bg-slate-800 hover:bg-rose-950/40 hover:border-rose-500/50 border border-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95 transition-all text-center">
+              🥤 建議飲料
+            </button>
+            <button onclick="getAiProteinAdvice('乳清類 (如乳清蛋白粉、分離乳清、隨手包調配)')" class="py-2 px-1.5 bg-slate-800 hover:bg-rose-950/40 hover:border-rose-500/50 border border-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95 transition-all text-center">
+              🥛 建議乳清
+            </button>
+            <button onclick="getAiProteinAdvice('主餐或點心 (如雞胸肉、牛腱、茶葉蛋、希臘優格、超商餐點)')" class="py-2 px-1.5 bg-slate-800 hover:bg-rose-950/40 hover:border-rose-500/50 border border-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95 transition-all text-center">
+              🍱 主餐或點心
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ==================== TAB 2: 週期進度總表 (TIMELINE) ==================== -->
   <main id="viewTimeline" class="max-w-md mx-auto px-4 py-4 space-y-4 hidden">
-    
-    <!-- Macro Overview -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
       <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">18 天增肌衝刺整體平均達成率</div>
       <div class="grid grid-cols-3 gap-2 text-center">
@@ -214,7 +266,6 @@
       </div>
     </section>
 
-    <!-- Draggable Timeline Matrix -->
     <section class="space-y-2">
       <div class="flex items-center justify-between px-1">
         <span class="text-xs font-bold text-slate-300">課表週期排程</span>
@@ -222,18 +273,14 @@
           <span>⠿</span> 按住手把上下拖曳調動
         </span>
       </div>
-      
-      <!-- Sortable Container -->
-      <div id="timelineCardsContainer" class="space-y-2">
-        <!-- Rendered by JS -->
-      </div>
+      <div id="timelineCardsContainer" class="space-y-2"></div>
     </section>
   </main>
 
   <!-- ==================== TAB 3: 管理後台 (ADMIN) ==================== -->
   <main id="viewAdmin" class="max-w-md mx-auto px-4 py-4 space-y-5 hidden">
     
-    <!-- 0. Google Sheets 雲端資料庫雙向同步專區 -->
+    <!-- Google Sheets 雲端同步 -->
     <section class="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-emerald-500/40 rounded-2xl p-4 shadow-lg shadow-emerald-950/20">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
@@ -271,7 +318,7 @@
       </div>
     </section>
 
-    <!-- 1. AI 智能估算食物營養專區 -->
+    <!-- AI 智能估算食物營養專區 -->
     <section id="ai-section" class="bg-gradient-to-b from-indigo-950/60 to-slate-900 border border-indigo-500/40 rounded-2xl p-4 shadow-lg shadow-indigo-950/50">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
@@ -351,7 +398,6 @@
 
         <p id="aiResultDesc" class="text-[11px] text-slate-300 bg-slate-800/60 p-2 rounded-lg border border-slate-800 leading-relaxed"></p>
 
-        <!-- Quick Action Buttons -->
         <div class="grid grid-cols-2 gap-2 pt-1">
           <button onclick="applyAiToPresets()" class="py-2 bg-rose-600/80 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg active:scale-95 transition-all">
             + 存入常用蛋白質 (自動雲端備份)
@@ -363,7 +409,7 @@
       </div>
     </section>
 
-    <!-- 2. 常用蛋白質品項資料庫 -->
+    <!-- 常用蛋白質品項資料庫 -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
       <div class="flex items-center gap-2 mb-3">
         <span class="w-2 h-4 bg-rose-500 rounded-full"></span>
@@ -386,7 +432,7 @@
       </div>
     </section>
 
-    <!-- 3. 課表彈性挪動與編修 -->
+    <!-- 課表彈性挪動與編修 -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
       <div class="flex items-center gap-2 mb-3">
         <span class="w-2 h-4 bg-indigo-500 rounded-full"></span>
@@ -878,7 +924,48 @@
       switchTab("tracker");
     }
 
-    // ================= GEMINI AI ENGINE =================
+    // ================= GEMINI AI HELPER =================
+    async function requestGemini(prompt) {
+      const apiKey = localStorage.getItem("irontracker_gemini_api_key");
+      if (!apiKey) {
+        throw new Error("請先至管理後台設定 Google Gemini API Key！");
+      }
+      const primaryModel = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
+      const candidateModels = [primaryModel, "gemini-3.6-flash", "gemini-3.5-flash"];
+      const uniqueModels = [...new Set(candidateModels)];
+
+      let lastError = null;
+      for (const model of uniqueModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          });
+
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error?.message || `API 狀態碼: ${resp.status}`);
+          }
+
+          const data = await resp.json();
+          const textResp = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!textResp) throw new Error("AI 回應為空");
+
+          const cleanJson = textResp.replace(/```json/g, "").replace(/```/g, "").trim();
+          return JSON.parse(cleanJson);
+        } catch (err) {
+          lastError = err;
+          continue;
+        }
+      }
+      throw lastError || new Error("模型調用失敗");
+    }
+
     function checkApiKeyStatus() {
       const key = localStorage.getItem("irontracker_gemini_api_key");
       const model = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
@@ -920,13 +1007,6 @@
 
     async function handleAiSearch(e) {
       e.preventDefault();
-      const apiKey = localStorage.getItem("irontracker_gemini_api_key");
-      if (!apiKey) {
-        alert("請先點擊上方「修改設定」，輸入並儲存您的免費 Google Gemini API Key！");
-        toggleApiKeyInput();
-        return;
-      }
-
       const store = document.getElementById("aiStoreInput").value.trim();
       const food = document.getElementById("aiFoodInput").value.trim();
       const note = document.getElementById("aiNoteInput").value.trim();
@@ -948,55 +1028,19 @@
   "name": "${store ? store + ' - ' : ''}${food}${note ? ' (' + note + ')' : ''}",
   "protein": 蛋白質數值(公克，浮點數或整數),
   "calories": 總熱量數值(大卡，整數),
-  "description": "簡短分析說明，例如主要食材份量、烹調方式對熱量的影響，約 40-70 字"
+  "description": "簡短分析說明，約 40-70 字"
 }`;
 
-      const primaryModel = localStorage.getItem("irontracker_gemini_model") || "gemini-3.6-flash";
-      const candidateModels = [primaryModel, "gemini-3.6-flash", "gemini-3.5-flash"];
-      const uniqueModels = [...new Set(candidateModels)];
-
-      let lastError = null;
-      let parsedResult = null;
-
-      for (const model of uniqueModels) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const resp = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
-
-          if (!resp.ok) {
-            const errData = await resp.json().catch(() => ({}));
-            throw new Error(errData.error?.message || `API 狀態碼: ${resp.status}`);
-          }
-
-          const data = await resp.json();
-          const textResp = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!textResp) throw new Error("AI 回應為空");
-
-          const cleanJson = textResp.replace(/```json/g, "").replace(/```/g, "").trim();
-          parsedResult = JSON.parse(cleanJson);
-          break;
-        } catch (err) {
-          lastError = err;
-          continue;
-        }
-      }
-
-      btn.disabled = false;
-      btn.classList.remove("opacity-60", "cursor-not-allowed");
-      btnText.textContent = "AI 智慧估算蛋白質與熱量";
-
-      if (parsedResult) {
-        latestAiParsed = parsedResult;
-        displayAiResult(parsedResult);
-      } else {
-        alert(`AI 估算失敗：${lastError ? lastError.message : "未知錯誤"}\n請確認 API Key 是否正確。`);
+      try {
+        const parsed = await requestGemini(prompt);
+        latestAiParsed = parsed;
+        displayAiResult(parsed);
+      } catch (err) {
+        alert(`AI 估算失敗：${err.message}\n請確認 API Key 是否設定正確。`);
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove("opacity-60", "cursor-not-allowed");
+        btnText.textContent = "AI 智慧估算蛋白質與熱量";
       }
     }
 
@@ -1036,6 +1080,103 @@
       alert(`已成功將「${latestAiParsed.name}」記入 ${currentDate} 飲食明細！`);
     }
 
+    // ================= 蛋白質欠債區 AI 智慧評估核心 =================
+    async function getAiProteinAdvice(preference = null) {
+      const data = getDayData(currentDate);
+      const schedule = currentSchedule[currentDate] || { targetProt: 205 };
+      const targetProt = schedule.targetProt || 205;
+
+      let totalProt = 0;
+      (data.dietLogs || []).forEach(log => {
+        totalProt += Number(log.protein || 0);
+      });
+
+      const deficit = Math.round((targetProt - totalProt) * 10) / 10;
+      if (deficit <= 0) {
+        alert(`今日蛋白質已達標 (已達 ${totalProt}g，超額 +${Math.abs(deficit)}g)，目前沒有欠債缺額！`);
+        return;
+      }
+
+      const btn = document.getElementById("debtAiBtn");
+      const btnText = document.getElementById("debtAiBtnText");
+      btn.disabled = true;
+      btn.classList.add("opacity-60", "cursor-not-allowed");
+      btnText.textContent = preference ? `AI 正在依【${preference.split(' ')[0]}】規劃中...` : "AI 正在量身計算最佳補充組合...";
+
+      const prompt = `你是一個資深健力與運動營養教練。
+學員目前的蛋白質目標為 ${targetProt}g，今日已攝取 ${totalProt}g，目前尚欠缺 【${deficit}g】 的蛋白質。
+${preference ? `學員明確指定偏好的補充型態為：【${preference}】。` : '學員尚未指定偏好，請提供最精準補足缺額的 1 到 3 個實用方案組合（台灣常見外食、超商即飲或家庭常備）。'}
+
+請以純 JSON 格式回應，絕對不要使用 markdown code block，輸出規格如下：
+{
+  "advice": "針對目前欠缺 ${deficit}g 的簡短專業叮嚀或補充時機建議 (約 40-70 字)",
+  "items": [
+    {
+      "name": "食物/品項名稱 (如: 光泉無糖濃豆漿 500ml 或 義美舒肥雞胸肉)",
+      "protein": 該品項所含蛋白質克數(數字),
+      "cal": 該品項估計總熱量(大卡整數),
+      "tag": "如: 超商推薦 / 練後快速補給 / 高CP值"
+    }
+  ]
+}`;
+
+      try {
+        const result = await requestGemini(prompt);
+        renderDebtResults(result, deficit);
+      } catch (err) {
+        alert(`AI 建議產生失敗：${err.message}\n請至「管理後台」確認 API Key 是否設定妥當。`);
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove("opacity-60", "cursor-not-allowed");
+        btnText.textContent = "AI 建議補充方式 (依當前欠額計算)";
+      }
+    }
+
+    function renderDebtResults(result, deficit) {
+      const box = document.getElementById("debtResultBox");
+      const adviceText = document.getElementById("debtAdviceText");
+      const itemsContainer = document.getElementById("debtItemsContainer");
+
+      box.classList.remove("hidden");
+      adviceText.textContent = result.advice || `目前蛋白質欠缺 ${deficit}g，請參考下方方案：`;
+      itemsContainer.innerHTML = "";
+
+      (result.items || []).forEach(item => {
+        const itemEl = document.createElement("div");
+        itemEl.className = "flex items-center justify-between p-3 rounded-xl bg-slate-800/90 border border-slate-700/80 transition-all hover:border-rose-500/50";
+        itemEl.innerHTML = `
+          <div class="flex-1 pr-2">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-bold text-slate-100 leading-snug">${item.name}</span>
+              ${item.tag ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">${item.tag}</span>` : ''}
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs font-extrabold text-rose-400">+${item.protein}g 蛋白質</span>
+              <span class="text-[10px] text-amber-300">${item.cal} kcal</span>
+            </div>
+          </div>
+          <button onclick="addDebtFoodToLog('${escapeQuotes(item.name)}', ${item.protein}, ${item.cal})"
+            class="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg active:scale-95 shadow transition-all whitespace-nowrap">
+            + 計入今日飲食
+          </button>
+        `;
+        itemsContainer.appendChild(itemEl);
+      });
+    }
+
+    function escapeQuotes(str) {
+      return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function addDebtFoodToLog(name, protein, cal) {
+      const d = getDayData(currentDate);
+      d.dietLogs.push({ name, protein, cal });
+      saveAllState();
+      renderTrackerView();
+      renderTimelineView();
+      alert(`已成功將「${name}」(+${protein}g 蛋) 記錄到今日飲食明細，並已自動同步至雲端！`);
+    }
+
     // ================= TRACKER VIEW RENDERING =================
     function onDateChange(newDate) {
       currentDate = newDate;
@@ -1056,16 +1197,35 @@
         totalCal += Number(log.cal || 0);
       });
 
+      // 1. Calories
       document.getElementById("calCurrent").textContent = Math.round(totalCal);
       document.getElementById("calTargetLabel").textContent = `/ ${targetCal}`;
       document.getElementById("calBar").style.width = Math.min(100, (totalCal / targetCal) * 100) + "%";
 
-      document.getElementById("protCurrent").textContent = (Math.round(totalProt * 10) / 10);
+      // 2. Protein Deficit / Target (尚未攝取顯示為負數)
+      const remainingProt = Math.round((totalProt - targetProt) * 10) / 10;
+      const protDisplay = remainingProt < 0 ? `${remainingProt}` : (remainingProt === 0 ? '0' : `+${remainingProt}`);
+      
+      const protCurrentEl = document.getElementById("protCurrent");
+      protCurrentEl.textContent = protDisplay;
+      document.getElementById("protTargetLabel").textContent = `/ ${targetProt}`;
       document.getElementById("protBar").style.width = Math.min(100, (totalProt / targetProt) * 100) + "%";
 
+      // 3. 蛋白質欠債區 Badge 更新
+      const debtBadge = document.getElementById("debtBadge");
+      if (remainingProt < 0) {
+        debtBadge.textContent = `欠缺: ${remainingProt}g`;
+        debtBadge.className = "text-xs font-black px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40";
+      } else {
+        debtBadge.textContent = remainingProt === 0 ? "已達成標準 ✓" : `超額達成 (+${remainingProt}g) ✓`;
+        debtBadge.className = "text-xs font-black px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+      }
+
+      // 4. Hydration
       document.getElementById("waterCurrent").textContent = data.water;
       document.getElementById("waterBar").style.width = Math.min(100, (data.water / targetWater) * 100) + "%";
 
+      // 5. Creatine
       const isLoading = schedule.phase === "creatine_loading";
       document.getElementById("creatinePhase").textContent = isLoading ? "🔥 肌酸快速填充期" : "⚡ 肌酸維持期";
       document.getElementById("creatineDose").textContent = isLoading ? "每日 20g (分 4 次攝取，每次 5g)" : "每日 5g (練後搭配高蛋白與碳水)";
@@ -1079,6 +1239,7 @@
         creatineBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold border border-indigo-500/40 bg-indigo-900/30 text-indigo-300";
       }
 
+      // 6. Workout Checklist
       document.getElementById("workoutTitle").textContent = schedule.title;
       const exList = document.getElementById("workoutList");
       exList.innerHTML = "";
@@ -1101,6 +1262,7 @@
       });
       document.getElementById("workoutCompletedRate").textContent = `${completedCount} / ${(schedule.exercises || []).length} 完成`;
 
+      // 7. Presets
       const trackerPresetGrid = document.getElementById("trackerPresetGrid");
       trackerPresetGrid.innerHTML = currentPresets.map(p => `
         <button onclick="addPresetFood('${p.name}', ${p.protein}, ${p.cal})"
@@ -1113,6 +1275,7 @@
         </button>
       `).join("");
 
+      // 8. Diet Logs
       const dietList = document.getElementById("dietLogList");
       if (!data.dietLogs || data.dietLogs.length === 0) {
         dietList.innerHTML = `<div class="text-[11px] text-slate-500 italic py-1">今日尚無飲食記錄</div>`;
@@ -1193,7 +1356,7 @@
       let sumCalRate = 0, sumProtRate = 0, sumWaterRate = 0;
       const todayISO = getTodayLocalISO();
 
-      dates.forEach((dStr, index) => {
+      dates.forEach(dStr => {
         const schedule = currentSchedule[dStr];
         const data = getDayData(dStr);
         const [y, m, d] = dStr.split("-");
@@ -1219,7 +1382,6 @@
         sumProtRate += protRate;
         sumWaterRate += waterRate;
 
-        // 預覽動作前 2 項
         const previewExercises = (schedule.exercises || []).slice(0, 2).map(e => e.text).join(" ｜ ");
 
         const card = document.createElement("div");
@@ -1230,7 +1392,6 @@
 
         card.innerHTML = `
           <div class="flex items-start justify-between gap-2 mb-2">
-            <!-- Left Info (點擊跳轉表記錄) -->
             <div class="flex-1 cursor-pointer" onclick="jumpToDateInTracker('${dStr}')">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-black ${isToday ? "text-amber-400" : (isSelected ? "text-indigo-400" : "text-white")}">${dayLabel}</span>
@@ -1239,20 +1400,16 @@
               <div class="text-[10px] text-slate-500 truncate mt-0.5 max-w-[230px]">${previewExercises || "無設定動作"}</div>
             </div>
 
-            <!-- Right Controls: 肌酸狀態 + 拖曳手把 -->
             <div class="flex items-center gap-2">
               <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${data.creatineDone ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-600'}">
                 ${data.creatineDone ? '肌酸✓' : '肌酸-'}
               </span>
-
-              <!-- 專屬拖曳手把 (加大感應區避免滑動誤觸) -->
               <div class="drag-handle touch-none cursor-grab active:cursor-grabbing p-2 text-slate-400 hover:text-indigo-400 rounded-lg bg-slate-800/80 border border-slate-700/60" title="按住拖曳更換順序">
                 <span class="text-sm font-black leading-none block">⠿</span>
               </div>
             </div>
           </div>
 
-          <!-- Triple Progress Bar Matrix -->
           <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 cursor-pointer" onclick="jumpToDateInTracker('${dStr}')">
             <div class="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
               <div class="flex justify-between text-[9px] font-semibold text-slate-400">
@@ -1293,7 +1450,6 @@
       document.getElementById("macroAvgProt").textContent = Math.round(sumProtRate / count) + "%";
       document.getElementById("macroAvgWater").textContent = Math.round(sumWaterRate / count) + "%";
 
-      // 啟動 / 重建 Sortable 拖曳監聽
       initTimelineDragAndDrop();
     }
 
@@ -1311,19 +1467,16 @@
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
         delay: 50,
-        delayOnTouchOnly: true, // 手機觸控時長按 50ms 啟動，防止滑動頁面時誤抓
+        delayOnTouchOnly: true,
         onEnd: function (evt) {
           if (evt.oldIndex === evt.newIndex) return;
 
           const dates = Object.keys(currentSchedule).sort();
-          // 取出原本按照日期排序的課表物件陣列
           const workoutsArray = dates.map(d => currentSchedule[d]);
 
-          // 將陣列依照拖曳位移重新排列
           const [movedWorkout] = workoutsArray.splice(evt.oldIndex, 1);
           workoutsArray.splice(evt.newIndex, 0, movedWorkout);
 
-          // 重新依序指派回固定的日曆日期
           dates.forEach((dStr, idx) => {
             currentSchedule[dStr] = workoutsArray[idx];
           });
